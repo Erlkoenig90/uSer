@@ -91,7 +91,13 @@
 #define USER_EXT_ENUM_MEM_GET_MPTR2(sname,name,...)	&sname:: name
 #define USER_EXT_ENUM_MEM_GET_MPTR(data,sname)		USER_PPM_EVAL0(USER_EXT_ENUM_MEM_GET_MPTR2 USER_LPAREN sname, USER_PPM_EVAL0 data USER_RPAREN)
 
+#ifdef __GNUC__
 #define USER_ALWAYS_INLINE  inline __attribute__((always_inline))
+#define USER_RESTRICT		__restrict__
+#else
+#define USER_ALWAYS_INLINE
+#define USER_RESTRICT
+#endif
 
 #endif
 
@@ -1078,7 +1084,7 @@ namespace uSer {
 		}
 
 		template <bool saveLast, typename RawInfo>
-		USER_ALWAYS_INLINE typename RawInfo::SWord readIter (typename RawInfo::RawIter& raw, typename RawInfo::SWord& out) {
+		USER_ALWAYS_INLINE typename RawInfo::SWord readIter (typename RawInfo::RawIter& USER_RESTRICT raw, typename RawInfo::SWord& USER_RESTRICT out) {
 			typename RawInfo::SWord data (*raw);
 			if (saveLast) out = data;
 			++raw;
@@ -1086,7 +1092,7 @@ namespace uSer {
 		}
 
 		template <typename T, typename RawInfo, Bit width, Bit bitOffset, std::size_t... I>
-		USER_ALWAYS_INLINE T extractInteger (typename RawInfo::RawIter& raw, typename RawInfo::SWord& last, std::index_sequence<I...>) {
+		USER_ALWAYS_INLINE T extractInteger (typename RawInfo::RawIter& USER_RESTRICT raw, typename RawInfo::SWord& USER_RESTRICT last, std::index_sequence<I...>) {
 			using SWord = typename RawInfo::SWord;
 			static constexpr Bit wSize = RawInfo::wSize;
 			static constexpr Bit shiftOff = (bitOffset == 0) ? 0 : (wSize - bitOffset);
@@ -1107,7 +1113,7 @@ namespace uSer {
 		}
 
 		template <typename T, typename RawInfo, Bit width, Bit bitOffset>
-		USER_ALWAYS_INLINE T extractInteger (typename RawInfo::RawIter& raw, typename RawInfo::SWord& last) {
+		USER_ALWAYS_INLINE T extractInteger (typename RawInfo::RawIter& USER_RESTRICT raw, typename RawInfo::SWord& USER_RESTRICT last) {
 			static constexpr Bit wSize = RawInfo::wSize;
 			static constexpr std::size_t inpWords = (bitOffset + width + wSize - 1) / wSize - (bitOffset != 0 ? 1 : 0);
 			return extractInteger<T, RawInfo, width, bitOffset> (raw, last, std::make_index_sequence<inpWords> {});
@@ -1116,8 +1122,8 @@ namespace uSer {
 		template <typename T, typename RawInfo, Bit Width, typename ByteOrder, Bit bitOffset>
 		struct IntegerDecoder {
 			using SWord = typename RawInfo::SWord;
-			typename RawInfo::RawIter& raw;
-			SWord& last;
+			typename RawInfo::RawIter& USER_RESTRICT raw;
+			SWord& USER_RESTRICT last;
 			T collect;
 		};
 		template <typename T, typename RawInfo, Bit Width, typename ByteOrder, Bit bitOffset, std::size_t I>
@@ -1133,11 +1139,11 @@ namespace uSer {
 		}
 
 		template <typename RawInfo, Bit Width, Bit bitOffset, typename ByteOrder, typename T, std::size_t... I>
-		USER_ALWAYS_INLINE T decodeInteger (typename RawInfo::RawIter& raw, typename RawInfo::SWord& last, std::index_sequence<I...>) {
+		USER_ALWAYS_INLINE T decodeInteger (typename RawInfo::RawIter& USER_RESTRICT raw, typename RawInfo::SWord& USER_RESTRICT last, std::index_sequence<I...>) {
 			return (IntegerDecoder<T, RawInfo, Width, ByteOrder, bitOffset> { raw, last, 0 } + ... + std::integral_constant<std::size_t, I> {}).collect;
 		}
 		template <typename RawInfo, Bit Width, Bit Padding, Bit bitOffset, typename ByteOrder, typename SignFormat, typename T>
-		std::enable_if_t<!std::is_same_v<T, bool>, void> decodeInteger (T& out, typename RawInfo::RawIter& raw, typename RawInfo::SWord& last) {
+		std::enable_if_t<!std::is_same_v<T, bool>, void> decodeInteger (T& USER_RESTRICT out, typename RawInfo::RawIter& USER_RESTRICT raw, typename RawInfo::SWord& USER_RESTRICT last) {
 			using SWord = typename RawInfo::SWord;
 			static constexpr Bit wSize = RawInfo::wSize;
 			static constexpr std::size_t numBytes = ByteOrder::numBytes (std::integral_constant<Bit, Width> {});
@@ -1156,7 +1162,7 @@ namespace uSer {
 			last = l_last;
 		}
 		template <typename RawInfo, Bit Width, Bit Padding, Bit bitOffset, typename ByteOrder, typename SignFormat>
-		void decodeInteger (bool& out, typename RawInfo::RawIter& raw, typename RawInfo::SWord& last) {
+		void decodeInteger (bool& USER_RESTRICT out, typename RawInfo::RawIter& USER_RESTRICT raw, typename RawInfo::SWord& USER_RESTRICT last) {
 			using SWord = typename RawInfo::SWord;
 			static constexpr Bit wSize = RawInfo::wSize;
 			static_assert (Width == 1, "Width must be 1 for boolean");
@@ -1184,13 +1190,13 @@ namespace uSer {
 		}
 
 		template <typename RawInfo>
-		USER_ALWAYS_INLINE void writeIter (typename RawInfo::RawIter& raw, const typename RawInfo::SWord& data) {
+		USER_ALWAYS_INLINE void writeIter (typename RawInfo::RawIter& USER_RESTRICT raw, const typename RawInfo::SWord& USER_RESTRICT data) {
 			*raw = data;
 			++raw;
 		}
 
 		template <typename T, typename RawInfo, Bit Width, Bit bitOffset, std::size_t... I>
-		USER_ALWAYS_INLINE void storeInteger (const T& data, typename RawInfo::RawIter& raw, typename RawInfo::SWord& last, std::index_sequence<I...>) {
+		USER_ALWAYS_INLINE void storeInteger (const T& USER_RESTRICT data, typename RawInfo::RawIter& USER_RESTRICT raw, typename RawInfo::SWord& USER_RESTRICT last, std::index_sequence<I...>) {
 			using SWord = typename RawInfo::SWord;
 			static constexpr Bit wSize = RawInfo::wSize;
 			static constexpr Bit shiftOff = (bitOffset == 0) ? 0 : (wSize - bitOffset);
@@ -1214,7 +1220,7 @@ namespace uSer {
 		}
 
 		template <typename T, typename RawInfo, Bit width, Bit bitOffset>
-		USER_ALWAYS_INLINE void storeInteger (const T& data, typename RawInfo::RawIter& raw, typename RawInfo::SWord& last) {
+		USER_ALWAYS_INLINE void storeInteger (const T& USER_RESTRICT data, typename RawInfo::RawIter& USER_RESTRICT raw, typename RawInfo::SWord& USER_RESTRICT last) {
 			static constexpr Bit wSize = RawInfo::wSize;
 			static constexpr std::size_t outWords = (bitOffset + width) < wSize ? 0 : ((bitOffset + width) / wSize - (bitOffset != 0 ? 1 : 0));
 			return storeInteger<T, RawInfo, width, bitOffset> (data, raw, last, std::make_index_sequence<outWords> {});
@@ -1224,8 +1230,8 @@ namespace uSer {
 		struct IntegerEncoder {
 			using SWord = typename RawInfo::SWord;
 			typename RawInfo::RawIter& raw;
-			SWord& last;
-			const T& data;
+			SWord& USER_RESTRICT last;
+			const T& USER_RESTRICT data;
 		};
 		template <typename T, typename RawInfo, Bit Width, typename ByteOrder, Bit bitOffset, std::size_t I>
 		USER_ALWAYS_INLINE decltype(auto) operator + (IntegerEncoder<T, RawInfo, Width, ByteOrder, bitOffset> d, std::integral_constant<std::size_t, I> i) {
@@ -1240,11 +1246,11 @@ namespace uSer {
 		}
 
 		template <typename RawInfo, Bit Width, Bit bitOffset, typename ByteOrder, typename T, std::size_t... I>
-		USER_ALWAYS_INLINE void encodeInteger (const T& data, typename RawInfo::RawIter& raw, typename RawInfo::SWord& last, std::index_sequence<I...>) {
+		USER_ALWAYS_INLINE void encodeInteger (const T& USER_RESTRICT data, typename RawInfo::RawIter& USER_RESTRICT raw, typename RawInfo::SWord& USER_RESTRICT last, std::index_sequence<I...>) {
 			(IntegerEncoder<T, RawInfo, Width, ByteOrder, bitOffset> { raw, last, data } + ... + std::integral_constant<std::size_t, I> {});
 		}
 		template <typename RawInfo, Bit Width, Bit Padding, Bit bitOffset, typename ByteOrder, typename SignFormat, typename T>
-		std::enable_if_t<!std::is_same_v<T, bool>, void> encodeInteger (const T& data, typename RawInfo::RawIter& raw, typename RawInfo::SWord& last) {
+		std::enable_if_t<!std::is_same_v<T, bool>, void> encodeInteger (const T& USER_RESTRICT data, typename RawInfo::RawIter& USER_RESTRICT raw, typename RawInfo::SWord& USER_RESTRICT last) {
 			using SWord = typename RawInfo::SWord;
 			static constexpr Bit wSize = RawInfo::wSize;
 			static constexpr std::size_t numBytes = ByteOrder::numBytes (std::integral_constant<Bit, Width> {});
@@ -1265,7 +1271,7 @@ namespace uSer {
 		}
 
 		template <typename RawInfo, Bit Width, Bit Padding, Bit bitOffset, typename ByteOrder, typename SignFormat>
-		void encodeInteger (const bool& data, typename RawInfo::RawIter& raw, typename RawInfo::SWord& last) {
+		void encodeInteger (const bool& USER_RESTRICT data, typename RawInfo::RawIter& USER_RESTRICT raw, typename RawInfo::SWord& USER_RESTRICT last) {
 			using SWord = typename RawInfo::SWord;
 			static constexpr Bit wSize = RawInfo::wSize;
 			static_assert (Width == 1, "Width must be 1 for boolean");
@@ -2924,7 +2930,7 @@ namespace uSer {
 			return begin (std::forward<T> (obj));
 		}
 
-		template <typename T, class = typename std::iterator_traits<T>::value_type>
+		template <typename T, class = typename std::iterator_traits<std::remove_reference_t<T>>::value_type>
 		USER_ALWAYS_INLINE T&& getRawIter (T&& iter) {
 			return std::forward<T> (iter);
 		}

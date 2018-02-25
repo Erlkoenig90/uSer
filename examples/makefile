@@ -1,10 +1,15 @@
-CXXFLAGS=-std=c++17 -fsanitize=undefined -Wall -Wextra -Wconversion -pedantic -I../uSer -g
+CXXFLAGS=-std=c++17 -Wall -Wextra -Wconversion -pedantic -I../uSer -fsanitize=undefined -g
 
 EX_SOURCES	= $(wildcard *.cpp)
 
 EX_BINARIES	= $(foreach file,$(EX_SOURCES),build/$(basename $(file)))
 
-all : $(EX_BINARIES)
+EX_DISAS = $(foreach file,$(EX_SOURCES),build/$(basename $(file)).S)
+
+all : $(EX_DISAS)
+
+$(EX_DISAS) : build/%.S : build/%
+	objdump -d -C $< > $@
 
 $(EX_BINARIES) : build/% : %.cpp ../uSer/uSer.hh
 	$(CXX) $(CXXFLAGS) -o $@ $<
@@ -12,4 +17,5 @@ $(EX_BINARIES) : build/% : %.cpp ../uSer/uSer.hh
 .PHONY : clean
 
 clean :
-	rm -f $(EX_BINARIES)
+	rm -f $(EX_BINARIES) $(EX_DISAS)
+
