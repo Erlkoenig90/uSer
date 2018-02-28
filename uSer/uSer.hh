@@ -45,12 +45,18 @@
 #include <utility>
 #include <cassert>
 #include <iterator>
-#include <iostream>
-#include <iomanip>
-#include <memory>
 #include <tuple>
 #include <cstdint>
 #include <limits>
+
+#ifndef USER_NO_SMARTPTR
+#include <memory>
+#endif
+
+#ifndef USER_NO_PRINT
+#include <ostream>
+#include <iomanip>
+#endif
 
 #ifdef USER_EXCEPTIONS
 #	include <stdexcept>
@@ -185,6 +191,7 @@ namespace uSer {
 		struct GetPointerTarget2<const T*> {
 			using Type = T;
 		};
+#ifndef USER_NO_SMARTPTR
 		template <typename T, typename Deleter>
 		struct GetPointerTarget2<std::unique_ptr<T, Deleter>> {
 			using Type = T;
@@ -233,6 +240,7 @@ namespace uSer {
 		struct GetPointerTarget2<std::weak_ptr<const T>> {
 			using Type = T;
 		};
+#endif
 		template <typename T>
 		using GetPointerTarget = typename GetPointerTarget2<T>::Type;
 
@@ -1142,14 +1150,14 @@ namespace uSer {
 		USER_ALWAYS_INLINE T decodeInteger (typename RawInfo::RawIter& USER_RESTRICT raw, typename RawInfo::SWord& USER_RESTRICT last, std::index_sequence<I...>) {
 			return (IntegerDecoder<T, RawInfo, Width, ByteOrder, bitOffset> { raw, last, 0 } + ... + std::integral_constant<std::size_t, I> {}).collect;
 		}
-		template <typename RawInfo, Bit Width, Bit Padding, Bit bitOffset, typename ByteOrder, typename SignFormat, typename T>
-		std::enable_if_t<!std::is_same_v<T, bool>, void> decodeInteger (T& USER_RESTRICT out, typename RawInfo::RawIter& USER_RESTRICT raw, typename RawInfo::SWord& USER_RESTRICT last) {
+		template <typename T, typename RawInfo, Bit Width, Bit Padding, Bit bitOffset, typename ByteOrder, typename SignFormat>
+		std::enable_if_t<!std::is_same_v<T, bool>, std::tuple<T, typename RawInfo::RawIter, typename RawInfo::SWord>> decodeInteger (typename RawInfo::RawIter raw, typename RawInfo::SWord last) {
 			using SWord = typename RawInfo::SWord;
 			static constexpr Bit wSize = RawInfo::wSize;
 			static constexpr std::size_t numBytes = ByteOrder::numBytes (std::integral_constant<Bit, Width> {});
 
 			SWord l_last = last;
-			out = SignFormat::template decode<Width> (decodeInteger<RawInfo, Width, bitOffset, ByteOrder, std::make_unsigned_t<T>> (raw, l_last, std::make_index_sequence<numBytes> {}));
+			T res = SignFormat::template decode<Width> (decodeInteger<RawInfo, Width, bitOffset, ByteOrder, std::make_unsigned_t<T>> (raw, l_last, std::make_index_sequence<numBytes> {}));
 
 			static constexpr std::size_t dataEndBit = (bitOffset + Width) % wSize;
 			static constexpr std::size_t paddingBytes = (dataEndBit + Padding + wSize - 1) / wSize - (dataEndBit != 0 ? 1 : 0);
@@ -1159,23 +1167,25 @@ namespace uSer {
 				l_last = *raw;
 				++raw;
 			}
-			last = l_last;
+			return { std::move (res), std::move (raw), std::move (l_last) };
 		}
-		template <typename RawInfo, Bit Width, Bit Padding, Bit bitOffset, typename ByteOrder, typename SignFormat>
-		void decodeInteger (bool& USER_RESTRICT out, typename RawInfo::RawIter& USER_RESTRICT raw, typename RawInfo::SWord& USER_RESTRICT last) {
+		template <typename T, typename RawInfo, Bit Width, Bit Padding, Bit bitOffset, typename ByteOrder, typename SignFormat>
+		std::enable_if_t<std::is_same_v<T, bool>, std::tuple<T, typename RawInfo::RawIter, typename RawInfo::SWord>> decodeInteger (typename RawInfo::RawIter raw, typename RawInfo::SWord last) {
 			using SWord = typename RawInfo::SWord;
 			static constexpr Bit wSize = RawInfo::wSize;
 			static_assert (Width == 1, "Width must be 1 for boolean");
 
 			SWord l_last;
+			bool res;
 			if constexpr (bitOffset == 0) {
+				static_cast<void> (last);
 				l_last = *raw;
 				++raw;
 
-				out = l_last & 1;
+				res = l_last & 1;
 			} else {
 				l_last = last;
-				out = (l_last & (SWord { 1 } << bitOffset)) != 0;
+				res = (l_last & (SWord { 1 } << bitOffset)) != 0;
 			}
 
 			static constexpr std::size_t dataEndBit = (bitOffset + Width) % wSize;
@@ -1186,7 +1196,8 @@ namespace uSer {
 				l_last = *raw;
 				++raw;
 			}
-			last = l_last;
+
+			return { std::move (res), std::move (raw), std::move (l_last) };
 		}
 
 		template <typename RawInfo>
@@ -1250,7 +1261,7 @@ namespace uSer {
 			(IntegerEncoder<T, RawInfo, Width, ByteOrder, bitOffset> { raw, last, data } + ... + std::integral_constant<std::size_t, I> {});
 		}
 		template <typename RawInfo, Bit Width, Bit Padding, Bit bitOffset, typename ByteOrder, typename SignFormat, typename T>
-		std::enable_if_t<!std::is_same_v<T, bool>, void> encodeInteger (const T& USER_RESTRICT data, typename RawInfo::RawIter& USER_RESTRICT raw, typename RawInfo::SWord& USER_RESTRICT last) {
+		std::enable_if_t<!std::is_same_v<T, bool>, std::pair<typename RawInfo::RawIter, typename RawInfo::SWord>> encodeInteger (const T data, typename RawInfo::RawIter raw, typename RawInfo::SWord last) {
 			using SWord = typename RawInfo::SWord;
 			static constexpr Bit wSize = RawInfo::wSize;
 			static constexpr std::size_t numBytes = ByteOrder::numBytes (std::integral_constant<Bit, Width> {});
@@ -1266,12 +1277,15 @@ namespace uSer {
 				++raw;
 				Helper::advanceOutIter (raw, paddingBytes-1);
 				l_last = 0;
+			} else {
+				static_cast<void> (last);
 			}
-			last = l_last;
+
+			return { std::move (raw), std::move (l_last) };
 		}
 
 		template <typename RawInfo, Bit Width, Bit Padding, Bit bitOffset, typename ByteOrder, typename SignFormat>
-		void encodeInteger (const bool& USER_RESTRICT data, typename RawInfo::RawIter& USER_RESTRICT raw, typename RawInfo::SWord& USER_RESTRICT last) {
+		std::pair<typename RawInfo::RawIter, typename RawInfo::SWord> encodeInteger (const bool data, typename RawInfo::RawIter raw, typename RawInfo::SWord last) {
 			using SWord = typename RawInfo::SWord;
 			static constexpr Bit wSize = RawInfo::wSize;
 			static_assert (Width == 1, "Width must be 1 for boolean");
@@ -1293,7 +1307,8 @@ namespace uSer {
 				Helper::advanceOutIter (raw, paddingBytes-1);
 				l_last = 0;
 			}
-			last = l_last;
+
+			return { std::move (raw), std::move (l_last) };
 		}
 	}
 
@@ -2316,27 +2331,35 @@ namespace uSer {
 
 				template <Bit Width, Bit Padding, typename ByteOrder, typename SignFormat>
 				USER_ALWAYS_INLINE std::enable_if_t<Read, Return<Width+Padding, NoDyn, false, SizeTracker>> walkInteger () {
-					Helper::decodeInteger<RawInfo, Width, Padding, bitOffset, ByteOrder, SignFormat> (obj, raw, last);
+					auto res = Helper::decodeInteger<Obj, RawInfo, Width, Padding, bitOffset, ByteOrder, SignFormat> (std::move (raw), std::move (last));
+					obj = std::move (std::get<0> (res));
+					raw = std::move (std::get<1> (res));
+					last = std::move (std::get<2> (res));
 					return { std::move (*this) };
 				}
 
 				template <Bit Width, Bit Padding, typename ByteOrder, typename SignFormat>
 				USER_ALWAYS_INLINE std::enable_if_t<!Read, Return<Width+Padding, NoDyn, false, SizeTracker>> walkInteger () {
-					Helper::encodeInteger<RawInfo, Width, Padding, bitOffset, ByteOrder, SignFormat> (obj, raw, last);
+					auto res = Helper::encodeInteger<RawInfo, Width, Padding, bitOffset, ByteOrder, SignFormat> (obj, std::move (raw), std::move (last));
+					raw = std::move (res.first);
+					last = std::move (res.second);
 					return { std::move (*this) };
 				}
 
 				template <Bit Width, Bit Padding, typename ByteOrder, typename SignFormat>
 				USER_ALWAYS_INLINE std::enable_if_t<Read, Return<Width+Padding, NoDyn, false, SizeTracker>> walkEnum () {
-					std::underlying_type_t<Obj> e;
-					Helper::decodeInteger<RawInfo, Width, Padding, bitOffset, ByteOrder, SignFormat> (e, raw, last);
-					obj = static_cast<Obj> (e);
+					auto res = Helper::decodeInteger<std::underlying_type_t<Obj>, RawInfo, Width, Padding, bitOffset, ByteOrder, SignFormat> (std::move (raw), std::move (last));
+					obj = static_cast<Obj> (std::move (std::get<0> (res)));
+					raw = std::move (std::get<1> (res));
+					last = std::move (std::get<2> (res));
 					return { std::move (*this) };
 				}
 
 				template <Bit Width, Bit Padding, typename ByteOrder, typename SignFormat>
 				USER_ALWAYS_INLINE std::enable_if_t<!Read, Return<Width+Padding, NoDyn, false, SizeTracker>> walkEnum () {
-					Helper::encodeInteger<RawInfo, Width, Padding, bitOffset, ByteOrder, SignFormat> (static_cast<std::underlying_type_t<Obj>> (obj), raw, last);
+					auto res = Helper::encodeInteger<RawInfo, Width, Padding, bitOffset, ByteOrder, SignFormat> (static_cast<std::underlying_type_t<Obj>> (obj), std::move (raw), std::move (last));
+					raw = std::move (res.first);
+					last = std::move (res.second);
 					return { std::move (*this) };
 				}
 
@@ -2673,7 +2696,7 @@ namespace uSer {
 			return { a, b };
 		}
 	};
-
+#ifndef USER_NO_PRINT
 	struct W_Print {
 		template <typename Obj_>
 		class Descend;
@@ -2855,7 +2878,7 @@ namespace uSer {
 			return { obj, str };
 		}
 	};
-
+#endif
 	namespace Helper {
 		template <typename... Attr>
 		using GetRootAttr = AttrRemoveTag<uSer::DefAttr<Attr...>, Helper::RawInfoTag>;
@@ -3134,6 +3157,7 @@ namespace uSer {
 		return SWalk::walk (W_Compare::template root<Obj> (a, b), A {}).result ();
 	}
 
+#ifndef USER_NO_PRINT
 	/**
 	 * Outputs a textual version of a serializable object.
 	 * \param[out] os			A stream to write the textual data to, e.g. std::cout.
@@ -3149,6 +3173,7 @@ namespace uSer {
 		os.copyfmt(state);
 		return os;
 	}
+#endif
 
 	/// A static constant defined to true if the given type can be serialized
 	template <typename RawIter, typename T, typename... Attr>

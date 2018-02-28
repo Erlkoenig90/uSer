@@ -38,3 +38,22 @@
  * \ref uSer::Exception in case of error.
  */
 #define USER_EXCEPTIONS
+
+/**
+ * \brief Disables smart pointer support for µSer
+ *
+ * This macro can optionally be defined by applications _before_ including the \ref uSer.hh "uSer.hh file" to
+ * disable uSer's support for standard library smart pointers. When defined, the standard header <memory> won't
+ * be included which might incur runtime overhead.
+ */
+#define USER_NO_SMARTPTR
+
+
+/**
+ * \brief Disables printing support for µSer
+ *
+ * This macro can optionally be defined by applications _before_ including the \ref uSer.hh "uSer.hh file" to
+ * disable uSer's support for printing data structures to std::ostream. When defined, the standard header <ostream> won't
+ * be included which might incur runtime overhead, and the function \ref uSer::print "print" won't be available.
+ */
+#define USER_NO_PRINT
