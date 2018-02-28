@@ -110,4 +110,7 @@ int main () {
 ```
 
 # Documentation
-The full documentation can be dowloaded on the [Relases page](https://github.com/Erlkoenig90/uSer/releases). You can also generate it from source by running "doxygen Doxyfile" within the "doc" directory. You can view it [online here](https://erlkoenig90.github.io/uSer-doc/html/index.html)
+The full documentation is generated via Doxygen and available in three ways:
+- [View it online](https://erlkoenig90.github.io/uSer-doc/html/index.html)
+- [Download as an archive](https://github.com/Erlkoenig90/uSer-doc/archive/master.zip)
+- Generate it from source by running "doxygen Doxyfile" within the "doc" directory. 

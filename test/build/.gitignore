@@ -6,3 +6,11 @@
 /test-clang-ex
 /test-clang-ec
 /test-clang-rel
+/test-gcc-quick.exe
+/test-gcc-ex.exe
+/test-gcc-ec.exe
+/test-gcc-rel.exe
+/test-clang-quick.exe
+/test-clang-ex.exe
+/test-clang-ec.exe
+/test-clang-rel.exe

@@ -1598,7 +1598,7 @@ namespace uSer {
 		struct GetIntRetImpl : GetIntRetBase<typename Descend::Obj, Attr> {
 			using B = GetIntRetBase<typename Descend::Obj, Attr>;
 			using Type = decltype(std::declval<Descend> ().template walkInteger<B::Width, B::padding, typename B::BO, typename B::SF> ());
-			static Type walk (Descend desc) {
+			USER_ALWAYS_INLINE static Type walk (Descend desc) {
 				return desc.template walkInteger<B::Width, B::padding, typename B::BO, typename B::SF> ();
 			}
 		};
