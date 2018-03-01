@@ -49,14 +49,14 @@ struct A {
 		std::cout << "SerPre\n";
 		// Simulate an error condition
 		if (a != 42)
-			throw uSer::Exception (uSer::ErrorCode::EHOOK);
+			throw uSer::Exception (uSer_EHOOK);
 	}
 
 	// Member function to be called after deserialization
-	uSer::ErrorCode deSerPost () {
+	uSer_ErrorCode deSerPost () {
 		std::cout << "DeSerPost\n";
 		// Simulate an error condition
-		return a == 42 ? uSer::ErrorCode::OK : uSer::ErrorCode::EHOOK;
+		return a == 42 ? uSer_EOK : uSer_EHOOK;
 	}
 
 	// Begin declaration. Define hook to be called after deserialization of the whole struct.

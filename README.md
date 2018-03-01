@@ -67,7 +67,7 @@ promote the sale, use or other dealings in this Software without
 prior written authorization from the authors.
 
 # Getting started
-To start using µSer, download the project's source code, add the contained "uSer" directory to the compiler's include path, or just copy the "uSer/uSer.hh" file into your project. Add an include directive to your C++ source code:
+To start using µSer, download the project's source code, add the contained "uSer" directory to the compiler's include path, or just copy the "uSer/uSer.hh" file into your project. Switch on your compiler's C++17 support, e.g. by passing "-std=c++17" to the command line for GCC and Clang. Add an include directive to your C++ source code:
 ```c++
 #include <uSer.hh>
 ```
@@ -108,6 +108,7 @@ int main () {
 	std::cout << "0x" << std::hex << x << std::endl;
 }
 ```
+The full documentation contains many more examples, including one about using µSer in C projects.
 
 # Documentation
 The full documentation is generated via Doxygen and available in three ways:

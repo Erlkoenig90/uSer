@@ -9,7 +9,7 @@ The key features are:
 - µSer is implemented as a header-only metaprogramming library for C++17.
 - No external tools, code generators, or specification languages are needed; everything is done by the C++ compiler.
 - µSer is easy to integrate into existing codebases; ideally, the serialization functions serve as drop-in replacements for memcpy.
-- The annotated structs are compatible with C, if no other C++ features are used. This makes it possible to define your data structures by a tree of structs in a header file that is shared between C and C++ code. Effectively, only very few lines of C++ codes are necessary to call µSer's functions. This makes it easy to integrate µSer into C projects.
+- The annotated structs are \ref CCompat "compatible with C", if no other C++ features are used. This makes it possible to define your data structures by a tree of structs in a header file that is shared between C and C++ code. Effectively, only very few lines of C++ codes are necessary to call µSer's functions. This makes it easy to integrate µSer into C projects.
 - For the raw data, µSer supports the byte orders \ref uSer::ByteOrder::LE "little endian", \ref uSer::ByteOrder::BE "big endian" and \ref uSer::ByteOrder::PDP "PDP endian". The byte order of the platform the application is running on has no influence on µSer's workings - in theory, µSer would continue to work on platforms with even different orders. The compiler's implementation of bitshifts should make sure that the bits end up in the right place.
 - Signed integers can be represented in the raw data using \ref uSer::SignFormat::TwosComplement "Two's complement", \ref uSer::SignFormat::OnesComplement "One's complement" and \ref uSer::SignFormat::SignedMagnitude "Signed-Magnitude". Again, the format of the host platform is irrelevant for µSer.
 - µSer accepts data in the following types, known as serializable types:
@@ -67,7 +67,7 @@ promote the sale, use or other dealings in this Software without
 prior written authorization from the authors.
 
 \section GettingStarted Getting started
-To start using µSer, download the project's source code, add the contained "uSer" directory to the compiler's include path, or just copy the \ref uSer.hh "uSer/uSer.hh" file into your project. Add an include directive to your C++ source code:
+To start using µSer, download the project's source code, add the contained "uSer" directory to the compiler's include path, or just copy the \ref uSer.hh "uSer/uSer.hh" file into your project. Switch on your compiler's C++17 support, e.g. by passing "-std=c++17" to the command line for GCC and Clang. Add an include directive to your C++ source code:
 \code{.cpp}
 #include <uSer.hh>
 \endcode
@@ -79,8 +79,10 @@ The opposite case of deserializing an array into an integer works as follows:
 
 \include 02_basic_read.cpp
 
+See \ref CCompat for how to use µSer in C projects.
+
 \section Testcases
-µSer ships with a set of unit tests. To run them, call "make" inside the "test" directory. If you only want to run the Clang tests, run "make test-clang-all". For g++, run "make test-gcc-all". Compiling the test cases takes a long time, but be careful with "-j" because it might eat up all your RAM.
+µSer ships with a set of unit tests. To run them, call "make" inside the "test" directory. If you only want to run the Clang tests, run "make run-clang". For g++, run "make run-gcc". Compiling the test cases takes a long time, but be careful with "-j" because it might eat up all your RAM. You will also probably need 64bit versions of the compiler's executable because it might consume more than 4 GB of RAM. Run "make run-gcc-quick" or "make run-clang-quick" to only perform a limited set of tests that compile much faster.
 
 \section Documentation
 - \subpage tutorial "The In-Depth Tutorial" covers all concepts of µSer
@@ -209,8 +211,8 @@ The attributes belonging to one category are mutually exclusive; at maximum one 
 
 The main entry points of µSer's API are the functions \ref uSer::serialize "serialize" and \ref uSer::deserialize "deserialize" which have several overloads to accommodate different use cases. The two functions have almost identical signatures that only differ in const-ness of the first two parameters. Because simply listing all overloads wouldn't be much help, we'll look at the functions on a more abstract level: 
 \code{.unparsed}
-	void|ErrorCode serialize   (raw, const obj [, size] , std::size_t* sizeUsed = nullptr)
-	void|ErrorCode deserialize (const raw, obj [, size] , std::size_t* sizeUsed = nullptr)
+	void|uSer_ErrorCode serialize   (raw, const obj [, size] , std::size_t* sizeUsed = nullptr)
+	void|uSer_ErrorCode deserialize (const raw, obj [, size] , std::size_t* sizeUsed = nullptr)
 \endcode
 The meaning of the parameters is:
 - The "raw" parameter refers to the raw binary data stream. It can be a reference to a C-Array, std::array, a container providing a ".size()" member function, or an \ref ConIter "iterator" containing unsigned integers, the \ref ConRaw "serialization words". For deserialize, the array/container or the target for the iterator may be const. µSer never allocates elements in output containers; the user has to make sure enough elements are available for writing, or use an iterator that appends as needed, such as std::back_insert_iterator.
@@ -248,12 +250,12 @@ When there is no explicit limit to the raw buffer size, we can pass "uSer::infSi
 This is also the first example where an \ref ConIter "iterator" instead of a reference to a container is passed to deserialize.
 \subsection ConError Error Handling
 
-The return type of serialize and deserialize depends on the parameters and is used to signal error conditions. If \ref USER_EXCEPTIONS is defined _before_ including the \ref uSer.hh header, exceptions are used to signal errors, and the return type will always be void. If it was not defined, and an error is possible (e.g. when using dynamic data structures or dynamic buffer sizes), the return type will be \ref uSer::ErrorCode "ErrorCode" to signal success (\ref uSer::ErrorCode::OK) or failure. If no errors can happen, the return type will be void. The \ref uSer::ErrorCode "ErrorCode" enum is defined as "[[nodiscard]]" - if you ignore the returned value, the compiler will emit a warning. If you use the return value even if no errors are possible, you will get a compiler error. This prevents both forgetting to include error handling and superfluous error handling code.
+The return type of serialize and deserialize depends on the parameters and is used to signal error conditions. If \ref USER_EXCEPTIONS is defined _before_ including the \ref uSer.hh header, exceptions are used to signal errors, and the return type will always be void. If it was not defined, and an error is possible (e.g. when using dynamic data structures or dynamic buffer sizes), the return type will be \ref uSer_ErrorCode to signal success (\ref uSer_EOK) or failure. If no errors can happen, the return type will be void. The \ref uSer_ErrorCode enum is defined as "[[nodiscard]]" - if you ignore the returned value, the compiler will emit a warning. If you use the return value even if no errors are possible, you will get a compiler error. This prevents both forgetting to include error handling and superfluous error handling code.
 
 We have already seen how to use exceptions:
 \include 05_ser_vector.cpp
 
-When using return codes, you can user \ref uSer::getErrorMessage to retrieve a string describing the error:
+When using return codes, you can user \ref uSer_getErrorMessage to retrieve a string describing the error:
 
 \include 12_errorcode.cpp
 
@@ -535,7 +537,7 @@ The argument may reference:
 
 The return type can be:
 -# void, in which case the function may indicate errors via exceptions, but not fail otherwise
--# \ref uSer::ErrorCode, in which case the function may indicate errors by the returned value or via exceptions (if enabled). If the function
+-# \ref uSer_ErrorCode, in which case the function may indicate errors by the returned value or via exceptions (if enabled). If the function
 		indicates an error via a return value and exceptions are enabled, µSer will throw an exception that forwards the error code.
 
 A constant (for serialization) or non-constant (for deserialization) reference to the annotated object is passed as the first argument. For cases 2-4, a constant (for serialization) or non-constant (for deserialization) reference to the struct is passed as a second argument, if the attribute was applied to a struct member.
@@ -552,7 +554,27 @@ Note that during the pre-deserialization hook, the object might not contain any 
 - \ref uSer::minBufSize "minBufSize<RawIter, T, Attr...>" is an integer denoting the minimum number of serialization words needed to (de)serialize the type T.
 - \ref uSer::minBufSize "maxBufSize<RawIter, T, Attr...>" is an integer denoting the maximum number of serialization words needed to (de)serialize the type T. Using this alias may cause a compiler error if the dynamic size is unlimited. Note that the maximum size might actually never occur depending on the data structure.
 
+\section Minimize Using µSer on resource-constrained systems
+µSer is designed to work on resource-constrained systems, such as small embedded systems. To this end, µSer never does any dynamic memory allocation. There are also some macros that can be defined _before_ including the uSer.hh header (or via the compiler's command line) to configure µSer:
+- \ref USER_EXCEPTIONS Do _not_ define this macro in order to disable exception support, which typically consumes a large amount of program memory
+- \ref USER_NO_PRINT Define this macro to disable support for printing serializable data via the \ref uSer::print function and prevent inclusion of the &lt;ostream&gt; header.
+- \ref USER_NO_SMARTPTR Define this macro to disable support for smart pointers and prevent inclusion of the &lt;memory&gt; header.
+
+When using GCC, compile with "-fdata-sections -ffunction-sections -flto", and link with "-Wl,--gc-sections -flto". These options can reduce the amount of program memory needed. µSer also relies on optimization to be turned on (e.g. -O2 for GCC and Clang) to generate efficient code. µSer employs deeply nested call stacks to statically build algorithms specifically adapted to the user-defined data structures. With optimization enabled, the compiler collapses those into short and efficient algorithms. If some code does not work with optimizations enabled, this is most probably the result of relying on some undefined behaviour, i.e. programming errors. Using µSer instead of e.g. pointer casts to serialize data already avoids some of those problems (specifically padding, data alignment, aliasing rules).
+
+\section CCompat C-Compatibility
+µSer can be used in C-based projects if a C++17-compatible compiler is available. Fist, define the desired data structures in a common header for both C and C++ (here: packet.h):
+\include C/packet.h
+Define the structs by using the µSer-provided macros \ref ConStructAnnot "as explained before". Also declare serialize/deserialize functions as needed, i.e. for the structs we want to explicitly serialize from C code. In this example, we only want to (de)serialize PacketB from C, and have the contained PacketA instances (de)serialized automatically. Therefore, we don't need serialization functions for PacketA. Adjust the signature as needed (with or without error codes in the return type, the desired raw buffer type, with or without a buffer size parameter). In order to call a C++ function from C, it has to be annotated with 'extern "C"', but only when the C++ compiler sees it. The \ref USER_EXTERN_C macro can be used for this, which evaluates to 'extern "C"' when compiling as C++, and to nothing when compiling as C.
+
+Then, create a C++ source file for implementing the serialization functions:
+\include C/serialize.cpp
+We have to include the "packet.h" file, and just call \ref uSer::serialize "serialize"/\ref uSer::deserialize "deserialize" in the function body. Remember to switch on the compiler's C++17 support (e.g. -std=c++17 for GCC and Clang). We can then use these functions from C code, e.g.:
+\include C/main.c
+
 \page Examples Examples
+µSer ships with a set of examples in the "examples" subdirectory. Run "make" in that directory to compile them all. The "examples/C" directory contains an \ref ExC "example" for using µSer with a C project consisting of multiple files.
+
 \tableofcontents
 \section Ex01 Serializing an integer into an array
 \include 01_basic_write.cpp
@@ -612,3 +634,10 @@ Note that during the pre-deserialization hook, the object might not contain any 
 \include 28_optional.cpp
 \section Ex29 Defining hook funktions to be called before/after (de)serialization
 \include 29_hook.cpp
+\section ExC Using µSer in C projects
+\subsection ExC_Hdr Common header file for data structures
+\include C/packet.h
+\subsection ExC_Ser Implementation of the C++ serialization functions
+\include C/serialize.cpp
+\subsection ExC_main Calling serialization functions from C code
+\include C/main.c

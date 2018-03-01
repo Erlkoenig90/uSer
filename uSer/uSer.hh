@@ -63,25 +63,82 @@
 #	include <string>
 #endif
 
-/// Begin intrusive struct definition
+/**
+ * \brief Begin intrusive struct definition
+ *
+ * Call this macro at the beginning of a struct definition. See \ref ConStruct1
+ * \param name		The name of the struct
+ * \param ...		A list of \ref Attr "attributes". If none, specify \ref uSer::AttrNone to avoid compiler warnings
+ */
 #define USER_STRUCT(name,...)						using uSer_Self = name; using uSer_Attributes = ::uSer::DefAttr<__VA_ARGS__>;
-/// Define attributes for single struct member
+/**
+ * \brief Define attributes for single struct member
+ *
+ * Call this macro if you want to annotate a single struct member. See \ref ConStruct3
+ * \param name		Name of the parameter
+ * \param ...		A list of \ref Attr "attributes".
+ */
 #define USER_MEM_ANNOT(name, ...)					static ::uSer::DefAttr<__VA_ARGS__> uSer_MemAttributes (::uSer::Helper::VTag<&uSer_Self:: name >);
-/// List previously defined struct members
+/**
+ * \brief List previously defined struct members
+ *
+ * Call this macro after \ref USER_STRUCT and the definition of member variables to make the members known to µSer. See \ref ConStruct1
+ * \param ...		The names of member variables.
+ */
 #define USER_ENUM_MEM(...)							using uSer_Members = ::uSer::StructMembers<USER_PPM_MAP_LIST(USER_ENUM_MEMPTR,uSer_Self,__VA_ARGS__)>;
-/// Define and annotate struct member
+/**
+ * \brief Define and annotate struct member
+ *
+ * Defines a member with \a type \a name and annotates it via \ref USER_MEM_ANNOT in one step. See \ref ConStruct4
+ * \param type		The type for the member
+ * \param name		The name for the member
+ */
 #define USER_MEM(type,name,...)						type name; USER_MEM_ANNOT(name, __VA_ARGS__)
-/// Define and annotate multiple struct members
+/**
+ * \brief Define and annotate multiple struct members with \ref Attr "attributes" in one step. See \ref ConStruct5
+ *
+ * \param ...		A sequence of the form (type1,name1,attributes1...),(type2,name2,attributes2...), ...
+ */
 #define USER_DEF_MEM(...)							USER_PPM_MAP(USER_DEF_MEM_I,,__VA_ARGS__) using uSer_Members = ::uSer::StructMembers<USER_PPM_MAP_LIST(USER_DEF_MEM_GET_MPTR,uSer_Self,__VA_ARGS__)>;
 
-/// Annotate external data type
+/**
+ * \brief Annotate external data type (struct)
+ *
+ * Adds annotations to any type. It is recommended to only use this on structs. This macro _must_ be called in the global namespace. See \ref ConStruct6
+ *
+ * \param name		The fully-qualified name of the annotated type (including namespaces)
+ * \param ...		A list of \ref Attr "attributes"
+ */
 #define USER_EXT_ANNOT(name,...)					namespace uSerExtAnnot { template <> struct ExtAttr<name> { using Type = ::uSer::DefAttr<__VA_ARGS__>; }; }
-/// Annotate external struct member
+/**
+ * \brief Annotate external struct member
+ *
+ * Adds annotations to the member of any struct. This macro _must_ be called in the global namespace. See \ref ConStruct6
+ *
+ * \param sname		The fully-qualified name of the surrounding struct (including namespaces)
+ * \param name		Name of the member
+ * \param ...		A list of \ref Attr "attributes"
+ */
 #define USER_EXT_MEM_ANNOT(sname,name, ...)			namespace uSerExtAnnot { template <> struct ExtMemAttr<&sname :: name> { using Type = ::uSer::DefAttr<__VA_ARGS__>; }; }
-/// List external struct members
+/**
+ * \brief List external struct members
+ *
+ * Makes the list of members of any struct known to µSer. This macro _must_ be called in the global namespace. See \ref ConStruct6
+ * \param sname		The fully-qualified name of the surrounding struct (including namespaces)
+ * \param ...		The names of member variables.
+ */
 #define USER_EXT_ENUM_MEM(sname,...)				namespace uSerExtAnnot { template <> struct ExtStructMembers<sname> { using Type = ::uSer::StructMembers<USER_PPM_MAP_LIST(USER_ENUM_MEMPTR,sname,__VA_ARGS__)>; }; }
-/// List and annotate external struct members
+/**
+ * \brief Define and annotate multiple members of any external struct with \ref Attr "attributes" in one step.
+ * This macro _must_ be called in the global namespace. See \ref ConStruct6
+ *
+ * \param sname		The fully-qualified name of the surrounding struct (including namespaces)
+ * \param ...		A sequence of the form (type1,name1,attributes1...),(type2,name2,attributes2...), ...
+ */
 #define USER_EXT_DEF_MEM(sname,...)					USER_PPM_MAP(USER_EXT_ENUM_MEM_I,sname,__VA_ARGS__) namespace uSerExtAnnot { template <> struct ExtStructMembers <sname>{ using Type = ::uSer::StructMembers<USER_PPM_MAP_LIST(USER_EXT_ENUM_MEM_GET_MPTR,sname,__VA_ARGS__)>; }; }
+
+/// This macro evaluates to extern "C" from C++, and to nothing in C. It can be used to define C++ functions that can be called from C code.
+#define USER_EXTERN_C								extern "C"
 
 #ifndef DOXYGEN
 
@@ -97,15 +154,62 @@
 #define USER_EXT_ENUM_MEM_GET_MPTR2(sname,name,...)	&sname:: name
 #define USER_EXT_ENUM_MEM_GET_MPTR(data,sname)		USER_PPM_EVAL0(USER_EXT_ENUM_MEM_GET_MPTR2 USER_LPAREN sname, USER_PPM_EVAL0 data USER_RPAREN)
 
-#ifdef __GNUC__
-#define USER_ALWAYS_INLINE  inline __attribute__((always_inline))
-#define USER_RESTRICT		__restrict__
-#else
-#define USER_ALWAYS_INLINE
-#define USER_RESTRICT
 #endif
 
+
+// Define error handling globally to allow C-compatibility. In C++ use [[nodiscard]] but not when using doxygen as it can't parse attributes.
+
+/// Error code for serialization functions
+typedef enum
+	#ifndef DOXYGEN
+		[[nodiscard]]
+	#endif
+#else
+
+#	include <stdint.h>
+#	include <stddef.h>
+#	include <assert.h>
+
+	typedef enum
 #endif
+
+	{
+		/// No error was indicated (success)
+		uSer_EOK = 0,
+		/// The size of a dynamic data structure exceeds the allowed maximum
+		uSer_EDYNRANGE = 1,
+		/// Raw buffer overflow
+		uSer_EBUFSIZE = 2,
+		/// This error is never raised by uSer, but can be used by hooks.
+		uSer_EHOOK = 3
+	} uSer_ErrorCode;
+
+	static const char* errorMessages [4] = { "Success", "Dynamic data size out of range", "Raw buffer overflow", "User hook indicates error" };
+
+#ifndef DOXYGEN
+#	ifdef __GNUC__
+#		define USER_ALWAYS_INLINE  inline __attribute__((always_inline))
+#		define USER_RESTRICT		__restrict__
+#	else
+#		define USER_ALWAYS_INLINE
+#		define USER_RESTRICT
+#	endif
+	static
+#endif
+
+	/// Returns a string describing the error indicated by the given error code.
+	USER_ALWAYS_INLINE const char* uSer_getErrorMessage (uSer_ErrorCode ec) {
+		int raw = (int) (ec);
+#ifdef __cplusplus
+		using std::size_t;
+#endif
+		assert (raw >= 0 && ((size_t) (raw)) < sizeof (errorMessages) / sizeof (errorMessages [0]));
+		return errorMessages [raw];
+	}
+
+#ifdef __cplusplus
+
+
 
 /// Namespace that collects external annotations. Contents is generated via the \ref USER_EXT_ANNOT macros.
 namespace uSerExtAnnot {
@@ -853,7 +957,7 @@ namespace uSer {
 		 *
 		 * The return type can be:
 		 * -# void, in which case the function may indicate errors via exceptions, but not fail otherwise
-		 * -# \ref ErrorCode, in which case the function may indicate errors by the returned value or via exceptions (if enabled). If the function
+		 * -# \ref uSer_ErrorCode, in which case the function may indicate errors by the returned value or via exceptions (if enabled). If the function
 		 * 		indicates an error via a return value and exceptions are enabled, uSer will throw an exception that forwards the error code.
 		 *
 		 * A constant reference to the annotated object is passed as the first argument. For cases 2-4, a constant reference to the struct is passed
@@ -877,7 +981,7 @@ namespace uSer {
 		 *
 		 * The return type can be:
 		 * -# void, in which case the function may indicate errors via exceptions, but not fail otherwise
-		 * -# \ref ErrorCode, in which case the function may indicate errors by the returned value or via exceptions (if enabled). If the function
+		 * -# \ref uSer_ErrorCode, in which case the function may indicate errors by the returned value or via exceptions (if enabled). If the function
 		 * 		indicates an error via a return value and exceptions are enabled, uSer will throw an exception that forwards the error code.
 		 *
 		 * A reference to the annotated object is passed as the first argument. For cases 2-4, a reference to the struct is passed
@@ -901,7 +1005,7 @@ namespace uSer {
 		 *
 		 * The return type can be:
 		 * -# void, in which case the function may indicate errors via exceptions, but not fail otherwise
-		 * -# \ref ErrorCode, in which case the function may indicate errors by the returned value or via exceptions (if enabled). If the function
+		 * -# \ref uSer_ErrorCode, in which case the function may indicate errors by the returned value or via exceptions (if enabled). If the function
 		 * 		indicates an error via a return value and exceptions are enabled, uSer will throw an exception that forwards the error code.
 		 *
 		 * A constant reference to the annotated object is passed as the first argument. For cases 2-4, a constant reference to the struct is passed
@@ -925,7 +1029,7 @@ namespace uSer {
 		 *
 		 * The return type can be:
 		 * -# void, in which case the function may indicate errors via exceptions, but not fail otherwise
-		 * -# \ref ErrorCode, in which case the function may indicate errors by the returned value or via exceptions (if enabled). If the function
+		 * -# \ref uSer_ErrorCode, in which case the function may indicate errors by the returned value or via exceptions (if enabled). If the function
 		 * 		indicates an error via a return value and exceptions are enabled, uSer will throw an exception that forwards the error code.
 		 *
 		 * A reference to the annotated object is passed as the first argument. For cases 2-4, a reference to the struct is passed
@@ -1034,42 +1138,18 @@ namespace uSer {
 		USER_ALWAYS_INLINE constexpr InfSize () {}
 	};
 
-	/// Error code for serialization functions
-	enum class
-#ifndef DOXYGEN
-	[[nodiscard]]
-#endif
-	 ErrorCode : std::uint_least8_t {
-		/// No error was indicated (success)
-		OK = 0,
-		/// The size of a dynamic data structure exceeds the allowed maximum
-		EDYNRANGE = 1,
-		/// Raw buffer overflow
-		EBUFSIZE = 2,
-		/// This error is never raised by uSer, but can be used by hooks.
-		EHOOK = 3
-	};
-	static constexpr const char* errorMessages [4] = { "Success", "Dynamic data size out of range", "Raw buffer overflow", "User hook indicates error" };
-
-	/// Returns a string describing the error indicated by the given error code.
-	USER_ALWAYS_INLINE const char* getErrorMessage (ErrorCode ec) {
-		auto raw = static_cast<std::underlying_type_t<ErrorCode>> (ec);
-		assert (raw < sizeof (errorMessages) / sizeof (errorMessages [0]));
-		return errorMessages [raw];
-	}
-
 #if defined(USER_EXCEPTIONS) || defined(DOXYGEN)
 	/**
 	 * Exception class used by µSer to signal errors. This is only supported if \ref USER_EXCEPTIONS is defined.
 	 * Use the "what" function inherited from std::runtime_error to retrieve a textual description of the error.
-	 * The result is equivalent to calling \ref getErrorMessage on the \ref errorCode member variable.
+	 * The result is equivalent to calling \ref uSer_getErrorMessage on the \ref errorCode member variable.
 	 */
 	class Exception : public std::runtime_error {
 		public:
-			Exception (ErrorCode code) : std::runtime_error (getErrorMessage(code)), errorCode (code) {}
+			Exception (uSer_ErrorCode code) : std::runtime_error (uSer_getErrorMessage(code)), errorCode (code) {}
 
 			/// Describes the type of error.
-			const ErrorCode errorCode;
+			const uSer_ErrorCode errorCode;
 	};
 #endif
 
@@ -1326,13 +1406,13 @@ namespace uSer {
 		};
 
 		// Function Pointer / ErrorCode + Struct
-		template <typename Algo, typename Obj, typename QObj, typename Struct, ErrorCode (*FPtr) (QObj&, typename Algo::template Qualify<Struct>&)>
-		struct InvokeHook<Algo, Obj, QObj, Struct, Helper::RefContainer<ErrorCode (*) (QObj&, typename Algo::template Qualify<Struct>&), FPtr>> {
+		template <typename Algo, typename Obj, typename QObj, typename Struct, uSer_ErrorCode (*FPtr) (QObj&, typename Algo::template Qualify<Struct>&)>
+		struct InvokeHook<Algo, Obj, QObj, Struct, Helper::RefContainer<uSer_ErrorCode (*) (QObj&, typename Algo::template Qualify<Struct>&), FPtr>> {
 			static constexpr bool canFail () { return true; }
 			static constexpr bool enabled () { return true; }
-			using Ret = ErrorCode;
+			using Ret = uSer_ErrorCode;
 
-			USER_ALWAYS_INLINE static ErrorCode invoke (QObj& obj, typename Algo::template Qualify<Struct>& str) {
+			USER_ALWAYS_INLINE static uSer_ErrorCode invoke (QObj& obj, typename Algo::template Qualify<Struct>& str) {
 				return FPtr (obj, str);
 			}
 		};
@@ -1347,25 +1427,25 @@ namespace uSer {
 				FPtr (obj, str);
 			}
 		};
-		// Member Function Pointer / ErrorCode + Struct
-		template <typename Algo, typename Obj, typename QObj, typename Struct, ErrorCode (Struct::*MemFun) (QObj&)>
-		struct InvokeHook<Algo, Obj, QObj, Struct, Helper::RefContainer<ErrorCode (Algo::template Qualify<Struct>::*) (QObj&), MemFun>> {
+		// Member Function Pointer / uSer_ErrorCode + Struct
+		template <typename Algo, typename Obj, typename QObj, typename Struct, uSer_ErrorCode (Struct::*MemFun) (QObj&)>
+		struct InvokeHook<Algo, Obj, QObj, Struct, Helper::RefContainer<uSer_ErrorCode (Algo::template Qualify<Struct>::*) (QObj&), MemFun>> {
 			static constexpr bool canFail () { return true; }
 			static constexpr bool enabled () { return true; }
-			using Ret = ErrorCode;
+			using Ret = uSer_ErrorCode;
 
-			USER_ALWAYS_INLINE static ErrorCode invoke (QObj& obj, typename Algo::template Qualify<Struct>& str) {
+			USER_ALWAYS_INLINE static uSer_ErrorCode invoke (QObj& obj, typename Algo::template Qualify<Struct>& str) {
 				return (str.*MemFun) (obj);
 			}
 		};
-		// const Member Function Pointer / ErrorCode + Struct
-		template <typename Algo, typename Obj, typename QObj, typename Struct, ErrorCode (Struct::*MemFun) (QObj&) const>
-		struct InvokeHook<Algo, Obj, QObj, Struct, Helper::RefContainer<ErrorCode (Algo::template Qualify<Struct>::*) (QObj&) const, MemFun>> {
+		// const Member Function Pointer / uSer_ErrorCode + Struct
+		template <typename Algo, typename Obj, typename QObj, typename Struct, uSer_ErrorCode (Struct::*MemFun) (QObj&) const>
+		struct InvokeHook<Algo, Obj, QObj, Struct, Helper::RefContainer<uSer_ErrorCode (Algo::template Qualify<Struct>::*) (QObj&) const, MemFun>> {
 			static constexpr bool canFail () { return true; }
 			static constexpr bool enabled () { return true; }
-			using Ret = ErrorCode;
+			using Ret = uSer_ErrorCode;
 
-			USER_ALWAYS_INLINE static ErrorCode invoke (QObj& obj, typename Algo::template Qualify<Struct>& str) {
+			USER_ALWAYS_INLINE static uSer_ErrorCode invoke (QObj& obj, typename Algo::template Qualify<Struct>& str) {
 				return (str.*MemFun) (obj);
 			}
 		};
@@ -1405,14 +1485,14 @@ namespace uSer {
 			}
 		};
 
-		// Function Pointer / ErrorCode
-		template <typename Algo, typename Obj, typename QObj, ErrorCode (*FPtr) (QObj&)>
-		struct InvokeHook<Algo, Obj, QObj, void, Helper::RefContainer<ErrorCode (*) (QObj&), FPtr>> {
+		// Function Pointer / uSer_ErrorCode
+		template <typename Algo, typename Obj, typename QObj, uSer_ErrorCode (*FPtr) (QObj&)>
+		struct InvokeHook<Algo, Obj, QObj, void, Helper::RefContainer<uSer_ErrorCode (*) (QObj&), FPtr>> {
 			static constexpr bool canFail () { return true; }
 			static constexpr bool enabled () { return true; }
-			using Ret = ErrorCode;
+			using Ret = uSer_ErrorCode;
 
-			USER_ALWAYS_INLINE static ErrorCode invoke (QObj& obj) {
+			USER_ALWAYS_INLINE static uSer_ErrorCode invoke (QObj& obj) {
 				return FPtr (obj);
 			}
 		};
@@ -1438,25 +1518,25 @@ namespace uSer {
 				return (*FRef) (obj);
 			}
 		};
-		// Member Function Pointer / ErrorCode + Struct Self
-		template <typename Algo, typename Obj, typename QObj, typename Struct, ErrorCode (Obj::*MemFun) ()>
-		struct InvokeHook<Algo, Obj, QObj, Struct, Helper::RefContainer<ErrorCode (Obj::*) (), MemFun>> {
+		// Member Function Pointer / uSer_ErrorCode + Struct Self
+		template <typename Algo, typename Obj, typename QObj, typename Struct, uSer_ErrorCode (Obj::*MemFun) ()>
+		struct InvokeHook<Algo, Obj, QObj, Struct, Helper::RefContainer<uSer_ErrorCode (Obj::*) (), MemFun>> {
 			static constexpr bool canFail () { return true; }
 			static constexpr bool enabled () { return true; }
-			using Ret = ErrorCode;
+			using Ret = uSer_ErrorCode;
 
-			USER_ALWAYS_INLINE static ErrorCode invoke (QObj& obj) {
+			USER_ALWAYS_INLINE static uSer_ErrorCode invoke (QObj& obj) {
 				return (obj.*MemFun) ();
 			}
 		};
-		// const Member Function Pointer / ErrorCode + Struct Self
-		template <typename Algo, typename Obj, typename QObj, typename Struct, ErrorCode (Obj::*MemFun) () const>
-		struct InvokeHook<Algo, Obj, QObj, Struct, Helper::RefContainer<ErrorCode (Obj::*) () const, MemFun>> {
+		// const Member Function Pointer / uSer_ErrorCode + Struct Self
+		template <typename Algo, typename Obj, typename QObj, typename Struct, uSer_ErrorCode (Obj::*MemFun) () const>
+		struct InvokeHook<Algo, Obj, QObj, Struct, Helper::RefContainer<uSer_ErrorCode (Obj::*) () const, MemFun>> {
 			static constexpr bool canFail () { return true; }
 			static constexpr bool enabled () { return true; }
-			using Ret = ErrorCode;
+			using Ret = uSer_ErrorCode;
 
-			USER_ALWAYS_INLINE static ErrorCode invoke (QObj& obj) {
+			USER_ALWAYS_INLINE static uSer_ErrorCode invoke (QObj& obj) {
 				return (obj.*MemFun) ();
 			}
 		};
@@ -1846,8 +1926,8 @@ namespace uSer {
 
 			if constexpr (Pre::enabled ()) {
 				if constexpr (Pre::canFail ()) {
-					ErrorCode ec = desc.template invokeStructHook<typename Pre::Ret, Pre, First> ();
-					if (ec != ErrorCode::OK)
+					uSer_ErrorCode ec = desc.template invokeStructHook<typename Pre::Ret, Pre, First> ();
+					if (ec != uSer_EOK)
 						return desc.template abortHook<Ret> (ec);
 				} else
 					desc.template invokeStructHook<typename Pre::Ret, Pre, First> ();
@@ -1860,8 +1940,8 @@ namespace uSer {
 
 			if constexpr (Post::enabled ()) {
 				if constexpr (Post::canFail ()) {
-					ErrorCode ec = desc.template invokeStructHook<typename Post::Ret, Post, First> ();
-					if (ec != ErrorCode::OK)
+					uSer_ErrorCode ec = desc.template invokeStructHook<typename Post::Ret, Post, First> ();
+					if (ec != uSer_EOK)
 						return desc.template abortHook<Ret> (ec);
 				} else
 					desc.template invokeStructHook<typename Post::Ret, Post, First> ();
@@ -2039,8 +2119,8 @@ namespace uSer {
 
 			if constexpr (Pre::enabled ()) {
 				if constexpr (Pre::canFail ()) {
-					ErrorCode ec = desc.template invokeHook<typename Pre::Ret, Pre> ();
-					if (ec != ErrorCode::OK)
+					uSer_ErrorCode ec = desc.template invokeHook<typename Pre::Ret, Pre> ();
+					if (ec != uSer_EOK)
 						return desc.template abortHook<Ret> (ec);
 				} else
 					desc.template invokeHook<typename Pre::Ret, Pre> ();
@@ -2055,8 +2135,8 @@ namespace uSer {
 
 			if constexpr (Post::enabled ()) {
 				if constexpr (Post::canFail ()) {
-					ErrorCode ec = desc.template invokeHook<typename Post::Ret, Post> ();
-					if (ec != ErrorCode::OK)
+					uSer_ErrorCode ec = desc.template invokeHook<typename Post::Ret, Post> ();
+					if (ec != uSer_EOK)
 						return desc.template abortHook<Ret> (ec);
 				} else
 					desc.template invokeHook<typename Post::Ret, Post> ();
@@ -2080,16 +2160,16 @@ namespace uSer {
 
 #ifdef USER_EXCEPTIONS
 				USER_ALWAYS_INLINE constexpr ErrorContainer () {}
-				static ErrorContainer signal (ErrorCode e) { throw Exception (e); }
+				static ErrorContainer signal (uSer_ErrorCode e) { throw Exception (e); }
 				USER_ALWAYS_INLINE bool cancel () const { return false; }
 				USER_ALWAYS_INLINE void errorOrVoid () const {}
 #else
-				USER_ALWAYS_INLINE constexpr ErrorContainer (ErrorCode e = {}) : m_error (e) {}
-				USER_ALWAYS_INLINE static ErrorContainer signal (ErrorCode e) { return {e}; }
-				USER_ALWAYS_INLINE constexpr ErrorCode errorOrVoid () const { return m_error; }
-				USER_ALWAYS_INLINE bool cancel () const { return m_error != ErrorCode::OK; }
+				USER_ALWAYS_INLINE constexpr ErrorContainer (uSer_ErrorCode e = {}) : m_error (e) {}
+				USER_ALWAYS_INLINE static ErrorContainer signal (uSer_ErrorCode e) { return {e}; }
+				USER_ALWAYS_INLINE constexpr uSer_ErrorCode errorOrVoid () const { return m_error; }
+				USER_ALWAYS_INLINE bool cancel () const { return m_error != uSer_EOK; }
 			private:
-				ErrorCode m_error;
+				uSer_ErrorCode m_error;
 #endif
 		};
 		template <>
@@ -2404,35 +2484,35 @@ namespace uSer {
 				}
 
 				template <auto ArrRef, auto SizeRef, typename El, typename SubRet, typename MaxT>
-				USER_ALWAYS_INLINE constexpr ErrorCode checkIterateDynSize (std::size_t& count, bool& ok, MaxT max) {
+				USER_ALWAYS_INLINE constexpr uSer_ErrorCode checkIterateDynSize (std::size_t& count, bool& ok, MaxT max) {
 					count = Helper::invokeRef (SizeRef, obj);
 					if (!max.check (count)) {
 						ok = false;
-						return ErrorCode::EDYNRANGE;
+						return uSer_EDYNRANGE;
 					}
 					if (!st ().advance ((SubRet::bits / wSize) * count)) {
 						ok = false;
-						return ErrorCode::EBUFSIZE;
+						return uSer_EBUFSIZE;
 					}
 					ok = true;
-					return ErrorCode::OK;
+					return uSer_EOK;
 				}
 				template <typename El, typename SubRet>
-				USER_ALWAYS_INLINE constexpr ErrorCode checkIterateDyn (int& res) {
+				USER_ALWAYS_INLINE constexpr uSer_ErrorCode checkIterateDyn (int& res) {
 					auto s = std::size (obj);
 					if (!st ().advance ((SubRet::bits / wSize) * s)) {
 						res = -1;
-						return ErrorCode::EBUFSIZE;
+						return uSer_EBUFSIZE;
 					}
 					if (s == 0)
 						res = 0;
 					else
 						res = 1;
-					return ErrorCode::OK;
+					return uSer_EOK;
 				}
 
 				template <typename SubRet, typename Ret>
-				USER_ALWAYS_INLINE constexpr Ret iterateDynAbort (ErrorCode code) {
+				USER_ALWAYS_INLINE constexpr Ret iterateDynAbort (uSer_ErrorCode code) {
 					return { std::move (*this), Ret::signal (code)};
 				}
 
@@ -2447,19 +2527,19 @@ namespace uSer {
 				}
 
 				template <auto MemRef, auto MetaRef, typename El, typename SubRet>
-				USER_ALWAYS_INLINE constexpr ErrorCode checkOptional (bool& present, bool& ok) {
+				USER_ALWAYS_INLINE constexpr uSer_ErrorCode checkOptional (bool& present, bool& ok) {
 					present = Helper::invokeRef (MetaRef, obj);
 					if (present && !st ().advance ((SubRet::bits/wSize))) {
 						ok = false;
-						return ErrorCode::EBUFSIZE;
+						return uSer_EBUFSIZE;
 					} else {
 						ok = true;
-						return ErrorCode::OK;
+						return uSer_EOK;
 					}
 				}
 
 				template <auto MemRef, typename SubRet, typename Ret>
-				USER_ALWAYS_INLINE constexpr Ret walkOptionalAbort (ErrorCode code) {
+				USER_ALWAYS_INLINE constexpr Ret walkOptionalAbort (uSer_ErrorCode code) {
 					return { std::move (*this), Ret::signal (code)};
 				}
 
@@ -2482,7 +2562,7 @@ namespace uSer {
 					return Invoker::invoke (obj);
 				}
 				template <typename Ret>
-				USER_ALWAYS_INLINE Ret abortHook (ErrorCode code) {
+				USER_ALWAYS_INLINE Ret abortHook (uSer_ErrorCode code) {
 					return { std::move (*this), Ret::signal (code) };
 				}
 			private:
@@ -2904,7 +2984,7 @@ namespace uSer {
 
 #ifndef USER_EXCEPTIONS
 		template <typename RawIter, typename Obj, bool Read, typename SizeT, typename... Attr>
-		using RootErrRet = std::conditional_t<SerCanFail<RawIter, Obj, Read, SizeT, Attr...>, ErrorCode, void>;
+		using RootErrRet = std::conditional_t<SerCanFail<RawIter, Obj, Read, SizeT, Attr...>, uSer_ErrorCode, void>;
 #else
 		template <typename RawIter, typename Obj, bool Read, typename... Attr>
 		using RootErrRet = void;
@@ -2921,9 +3001,9 @@ namespace uSer {
 			if constexpr (STracker::canFail) {
 				if (!STracker::check (size)) {
 #ifndef USER_EXCEPTIONS
-					return ErrorCode::EBUFSIZE;
+					return uSer_EBUFSIZE;
 #else
-					throw Exception (ErrorCode::EBUFSIZE);
+					throw Exception (uSer_EBUFSIZE);
 #endif
 				}
 			}
@@ -2943,7 +3023,7 @@ namespace uSer {
 				lastRet.finish ();
 #ifndef USER_EXCEPTIONS
 				if constexpr (STracker::canFail)
-						return ErrorCode::OK;
+						return uSer_EOK;
 			}
 #endif
 		}
@@ -2996,7 +3076,7 @@ namespace uSer {
 	 * \param[in]	obj			The object to serialize
 	 * \param[in]	size		The size of the raw data stream; either a \ref fixedSize or \ref infSize
 	 * \param[out]	sizeUsed	Optional output parameter indicating the number of serialization words actually used in the raw data stream.
-	 * \return					If an error is possible for the requested data types AND exceptions are disabled, an \ref ErrorCode is returned; else the return type is void.
+	 * \return					If an error is possible for the requested data types AND exceptions are disabled, an \ref uSer_ErrorCode is returned; else the return type is void.
 	 */
 	template <typename... Attr, typename RawIter, typename Obj, typename SizeT, std::enable_if_t<std::is_convertible_v<SizeT, Helper::SizeDefTag>, int> = 42>
 	decltype(auto) serialize (RawIter&& raw, const Obj& obj, SizeT size, std::size_t* sizeUsed = nullptr) {
@@ -3008,7 +3088,7 @@ namespace uSer {
 	 * \param[out]	raw			A reference to a C array.
 	 * \param[in]	obj			The object to serialize
 	 * \param[out]	sizeUsed	Optional output parameter indicating the number of serialization words actually used in the raw data stream.
-	 * \return					If an error is possible for the requested data types AND exceptions are disabled, an \ref ErrorCode is returned; else the return type is void.
+	 * \return					If an error is possible for the requested data types AND exceptions are disabled, an \ref uSer_ErrorCode is returned; else the return type is void.
 	 */
 	template <typename... Attr, typename SWord, typename Obj, std::size_t N>
 	decltype(auto) serialize (SWord (&raw) [N], const Obj& obj, std::size_t* sizeUsed = nullptr) {
@@ -3020,7 +3100,7 @@ namespace uSer {
 	 * \param[out]	raw			A reference to std::array<T,N>.
 	 * \param[in]	obj			The object to serialize
 	 * \param[out]	sizeUsed	Optional output parameter indicating the number of serialization words actually used in the raw data stream.
-	 * \return					If an error is possible for the requested data types AND exceptions are disabled, an \ref ErrorCode is returned; else the return type is void.
+	 * \return					If an error is possible for the requested data types AND exceptions are disabled, an \ref uSer_ErrorCode is returned; else the return type is void.
 	 */
 	template <typename... Attr, typename SWord, typename Obj, std::size_t N>
 	decltype(auto) serialize (std::array<SWord,N>& raw, const Obj& obj, std::size_t* sizeUsed = nullptr) {
@@ -3033,7 +3113,7 @@ namespace uSer {
 	 * \param[in]	obj			The object to serialize
 	 * \param[in]	size		The size of the raw data stream given as a std::size_t
 	 * \param[out]	sizeUsed	Optional output parameter indicating the number of serialization words actually used in the raw data stream.
-	 * \return					If exceptions are disabled, an \ref ErrorCode is returned; else the return type is void.
+	 * \return					If exceptions are disabled, an \ref uSer_ErrorCode is returned; else the return type is void.
 	 */
 	template <typename... Attr, typename RawIter, typename Obj>
 	decltype(auto) serialize (RawIter&& raw, const Obj& obj, std::size_t size, std::size_t* sizeUsed = nullptr) {
@@ -3045,7 +3125,7 @@ namespace uSer {
 	 * \param[out]	raw			Any container supporting iterators and a .size() member function
 	 * \param[in]	obj			The object to serialize
 	 * \param[out]	sizeUsed	Optional output parameter indicating the number of serialization words actually used in the raw data stream.
-	 * \return					If exceptions are disabled, an \ref ErrorCode is returned; else the return type is void.
+	 * \return					If exceptions are disabled, an \ref uSer_ErrorCode is returned; else the return type is void.
 	 */
 	template <typename... Attr, typename RawContainer, typename Obj, decltype (std::size (std::declval<RawContainer> ()))* = nullptr>
 	decltype(auto) serialize (RawContainer&& raw, const Obj& obj, std::size_t* sizeUsed = nullptr) {
@@ -3062,7 +3142,7 @@ namespace uSer {
 	 * \param[out]	obj			The object to receive the deserialized data
 	 * \param[in]	size		The size of the raw data stream; either a \ref fixedSize or \ref infSize
 	 * \param[out]	sizeUsed	Optional output parameter indicating the number of serialization words actually used in the raw data stream.
-	 * \return					If an error is possible for the requested data types AND exceptions are disabled, an \ref ErrorCode is returned; else the return type is void.
+	 * \return					If an error is possible for the requested data types AND exceptions are disabled, an \ref uSer_ErrorCode is returned; else the return type is void.
 	 */
 	template <typename... Attr, typename RawIter, typename Obj, typename SizeT, std::enable_if_t<std::is_convertible_v<SizeT, Helper::SizeDefTag>, int> = 42>
 	decltype(auto) deserialize (RawIter&& raw, Obj& obj, SizeT size, std::size_t* sizeUsed = nullptr) {
@@ -3074,7 +3154,7 @@ namespace uSer {
 	 * \param[in]	raw			A reference to a constant C array.
 	 * \param[out]	obj			The object to receive the deserialized data
 	 * \param[out]	sizeUsed	Optional output parameter indicating the number of serialization words actually used in the raw data stream.
-	 * \return					If an error is possible for the requested data types AND exceptions are disabled, an \ref ErrorCode is returned; else the return type is void.
+	 * \return					If an error is possible for the requested data types AND exceptions are disabled, an \ref uSer_ErrorCode is returned; else the return type is void.
 	 */
 	template <typename... Attr, typename SWord, typename Obj, std::size_t N>
 	decltype(auto) deserialize (const SWord (&raw) [N], Obj& obj, std::size_t* sizeUsed = nullptr) {
@@ -3086,7 +3166,7 @@ namespace uSer {
 	 * \param[in]	raw			A reference to constant std::array<T,N>.
 	 * \param[out]	obj			The object to receive the deserialized data
 	 * \param[out]	sizeUsed	Optional output parameter indicating the number of serialization words actually used in the raw data stream.
-	 * \return					If an error is possible for the requested data types AND exceptions are disabled, an \ref ErrorCode is returned; else the return type is void.
+	 * \return					If an error is possible for the requested data types AND exceptions are disabled, an \ref uSer_ErrorCode is returned; else the return type is void.
 	 */
 	template <typename... Attr, typename SWord, typename Obj, std::size_t N>
 	decltype(auto) deserialize (const std::array<SWord,N>& raw, Obj& obj, std::size_t* sizeUsed = nullptr) {
@@ -3100,7 +3180,7 @@ namespace uSer {
 	 * \param[in]	raw			A reference to a C array.
 	 * \param[out]	obj			The object to receive the deserialized data
 	 * \param[out]	sizeUsed	Optional output parameter indicating the number of serialization words actually used in the raw data stream.
-	 * \return					If an error is possible for the requested data types AND exceptions are disabled, an \ref ErrorCode is returned; else the return type is void.
+	 * \return					If an error is possible for the requested data types AND exceptions are disabled, an \ref uSer_ErrorCode is returned; else the return type is void.
 	 */
 	template <typename... Attr, typename SWord, typename Obj, std::size_t N>
 	decltype(auto) deserialize (SWord (&raw) [N], Obj& obj, std::size_t* sizeUsed = nullptr) {
@@ -3114,7 +3194,7 @@ namespace uSer {
 	 * \param[in]	raw			A reference to std::array<T,N>.
 	 * \param[out]	obj			The object to receive the deserialized data
 	 * \param[out]	sizeUsed	Optional output parameter indicating the number of serialization words actually used in the raw data stream.
-	 * \return					If an error is possible for the requested data types AND exceptions are disabled, an \ref ErrorCode is returned; else the return type is void.
+	 * \return					If an error is possible for the requested data types AND exceptions are disabled, an \ref uSer_ErrorCode is returned; else the return type is void.
 	 */
 	// Non-Const std::array without explicit size. This overload prevents the last one from being called if the array is non-const.
 	template <typename... Attr, typename SWord, typename Obj, std::size_t N>
@@ -3128,7 +3208,7 @@ namespace uSer {
 	 * \param[out]	obj			The object to receive the deserialized data
 	 * \param[in]	size		The size of the raw data stream given as a std::size_t
 	 * \param[out]	sizeUsed	Optional output parameter indicating the number of serialization words actually used in the raw data stream.
-	 * \return					If exceptions are disabled, an \ref ErrorCode is returned; else the return type is void.
+	 * \return					If exceptions are disabled, an \ref uSer_ErrorCode is returned; else the return type is void.
 	 */
 	template <typename... Attr, typename RawIter, typename Obj>
 	decltype(auto) deserialize (RawIter&& raw, Obj& obj, std::size_t size, std::size_t* sizeUsed = nullptr) {
@@ -3140,7 +3220,7 @@ namespace uSer {
 	 * \param[in]	raw			Any container supporting iterators and a .size() member function
 	 * \param[out]	obj			The object to receive the deserialized data
 	 * \param[out]	sizeUsed	Optional output parameter indicating the number of serialization words actually used in the raw data stream.
-	 * \return					If exceptions are disabled, an \ref ErrorCode is returned; else the return type is void.
+	 * \return					If exceptions are disabled, an \ref uSer_ErrorCode is returned; else the return type is void.
 	 */
 	template <typename... Attr, typename RawContainer, typename Obj, decltype (std::size (std::declval<RawContainer> ()))* = nullptr>
 	decltype(auto) deserialize (RawContainer&& raw, Obj& obj, std::size_t* sizeUsed = nullptr) {
@@ -3182,10 +3262,6 @@ namespace uSer {
 
 #else
 
-#include <stdint.h>
-#include <stddef.h>
-#include <assert.h>
-
 /// Begin intrusive struct definition
 #define USER_STRUCT(name,...)
 /// Define attributes for single struct member
@@ -3207,6 +3283,8 @@ namespace uSer {
 #define USER_EXT_DEF_MEM(sname,...)
 
 #define USER_DEF_MEM_I(data,dummy)				USER_PPM_EVAL0(USER_MEM data)
+
+#define USER_EXTERN_C
 
 #endif
 

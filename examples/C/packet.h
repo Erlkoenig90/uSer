@@ -1,6 +1,6 @@
 /**
- * \file optional.cpp
- * \brief The macros in this file are not defined by µSer, but can optionally be defined by application code _before_ including \ref uSer.hh to configure it.
+ * \file packet.h
+ * \brief Common header file for C and C++ to declare serializable data structures ("packets")
  * \author Niklas Gürtler
  * \copyright (C) 2018 Niklas Gürtler
  *
@@ -29,31 +29,42 @@
  * prior written authorization from the authors.
  */
 
-/**
- * \brief Enables exception support for µSer
- *
- * This macro can optionally be defined by applications _before_ including the \ref uSer.hh "uSer.hh file" to
- * enable uSer's exception support. In that case, the \ref uSer::serialize and
- * \ref uSer::deserialize functions always return void, and throw an instance of
- * \ref uSer::Exception in case of error.
- */
-#define USER_EXCEPTIONS
+#include <uSer.hh>
 
-/**
- * \brief Disables smart pointer support for µSer
- *
- * This macro can optionally be defined by applications _before_ including the \ref uSer.hh "uSer.hh file" to
- * disable uSer's support for standard library smart pointers. When defined, the standard header &lt;memory&gt; won't
- * be included which might incur runtime overhead.
- */
-#define USER_NO_SMARTPTR
+// Define data structures compatible with both C and C++.
 
+// Define a simple struct containing integers
+struct PacketA {
+	// Begin struct definition
+	USER_STRUCT(PacketA, uSer::AttrNone)
 
-/**
- * \brief Disables printing support for µSer
- *
- * This macro can optionally be defined by applications _before_ including the \ref uSer.hh "uSer.hh file" to
- * disable uSer's support for printing data structures to std::ostream. When defined, the standard header &lt;ostream&gt; won't
- * be included which might incur runtime overhead, and the function \ref uSer::print "print" won't be available.
- */
-#define USER_NO_PRINT
+	uint32_t a;
+	// Encode a in Big-Endian in the raw data
+	USER_MEM_ANNOT(a, uSer::ByteOrder::BE)
+
+	uint16_t b;
+	int8_t c;
+	// Encode c in signed-magnitude format in the raw data
+	USER_MEM_ANNOT(c, uSer::SignFormat::SignedMagnitude)
+
+	// List members
+	USER_ENUM_MEM (a, b, c)
+};
+
+// Define a struct containing a dynamic data structure. Use the "typedef struct"-Trick to make usage more convenient.
+typedef struct PacketB_ {
+	// Begin struct definition
+	USER_STRUCT (PacketB_, uSer::AttrNone)
+
+	uint8_t N;
+	struct PacketA packets [8];
+	// Let N denote the size of the arra packets.
+	USER_MEM_ANNOT (packets, uSer::Dyn::Size<&PacketB_::N>)
+
+	USER_ENUM_MEM (N, packets)
+} PacketB;
+
+// Declare functions for (de)serialization of the data structure. These will be implemented as C++.
+
+USER_EXTERN_C uSer_ErrorCode serializePacketB (uint8_t* raw, const PacketB* pk, size_t bufferSize);
+USER_EXTERN_C uSer_ErrorCode deserializePacketB (const uint8_t* raw, PacketB* pk, size_t bufferSize);

@@ -1,6 +1,6 @@
 /**
- * \file 12_errorcodes.cpp
- * \brief Using return codes to process errors.
+ * \file main.c
+ * \brief Example for using µSer from C code by using a common data structure for C and C++
  * \author Niklas Gürtler
  * \copyright (C) 2018 Niklas Gürtler
  *
@@ -28,24 +28,56 @@
  * promote the sale, use or other dealings in this Software without
  * prior written authorization from the authors.
  */
-#include <cstdint>
-#include <iostream>
-#include <vector>
-#include <uSer.hh>
+
+#include <stdio.h>
+#include <inttypes.h>
+#include "packet.h"
+
 
 int main () {
-	// Define an array to receive the raw binary data.
-	std::uint8_t raw [4];
-	// Define the data to be serialized.
-	const std::vector<std::uint16_t> x { 0x4554, 0x5453 };
-	// Perform the actual serialization.
-	uSer_ErrorCode ec = uSer::serialize (raw, x);
-	// Check for success
-	if (ec == uSer_EOK) {
-		// Write the binary data to standard output.
-		std::cout.write (reinterpret_cast<char*> (raw), 4) << std::endl;
+	// Define a packet instance and fill it with some data
+	PacketB pk;
+	pk.N = 2;
+	pk.packets [0].a = 0xDEADBEEF;
+	pk.packets [0].b = 0xAA55;
+	pk.packets [0].c = -42;
+
+	pk.packets [1].a = 0xC0FEBABE;
+	pk.packets [1].b = 0x1234;
+	pk.packets [1].c = 35;
+
+	// Define an array to receive the raw data
+	uint8_t raw [15];
+	// Serialize the packet into the raw data
+	uSer_ErrorCode ec = serializePacketB (raw, &pk, sizeof (raw) /* uint8_t always has size 1 */);
+	// Check for errors
+	if (ec != uSer_EOK) {
+		fprintf (stderr, "Serialization error: %s\n", uSer_getErrorMessage (ec));
+		return 1;
 	} else {
-		// Print error message
-		std::cerr << "uSer Error: " << uSer_getErrorMessage(ec) << std::endl;
+		// Print the raw data
+		puts ("Serialization result:");
+
+		for (size_t i = 0; i < sizeof(raw); ++i) {
+			printf ("%02x, ", raw [i]);
+		}
+		puts ("");
+	}
+
+	// Deserialize the raw data back into the struct
+	ec = deserializePacketB (raw, &pk, sizeof (raw));
+	// Check for errors
+	if (ec != uSer_EOK) {
+		fprintf (stderr, "Deserialization error: %s\n", uSer_getErrorMessage (ec));
+		return 1;
+	} else {
+		// Print the deserialized data structure
+		puts ("Deserialization result:");
+
+		printf ("pk.N=%" PRIu8 "\n", pk.N);
+
+		for (size_t i = 0; i < pk.N; ++i) {
+			printf ("pk.packets[%zd].a=%" PRIx32 ", .b=%" PRIx16 ", .c=%" PRId8 "\n", i, pk.packets [i].a, pk.packets [i].b, pk.packets [i].c);
+		}
 	}
 }

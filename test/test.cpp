@@ -1058,33 +1058,33 @@ struct T61 {
 	USER_STRUCT(T61, uSer::AttrNone)
 	using MaxSWord = ::MaxSWord;
 
-	uSer::ErrorCode serPre1 (const uint8_t& obj) const {
+	uSer_ErrorCode serPre1 (const uint8_t& obj) const {
 //		std::cout << "serPre1\n";
 		verify (testState == 0);
 		verify (&obj == &b);
 		testState = 1;
-		return (obj != 42) ? uSer::ErrorCode::OK : uSer::ErrorCode::EHOOK;
+		return (obj != 42) ? uSer_EOK : uSer_EHOOK;
 	}
-	uSer::ErrorCode serPost1 (const uint8_t& obj) const {
+	uSer_ErrorCode serPost1 (const uint8_t& obj) const {
 //		std::cout << "serPost1\n";
 		verify (testState == 1);
 		verify (&obj == &b);
 		testState = 2;
-		return (obj != 43) ? uSer::ErrorCode::OK : uSer::ErrorCode::EHOOK;
+		return (obj != 43) ? uSer_EOK : uSer_EHOOK;
 	}
-	uSer::ErrorCode deSerPre1 (uint8_t& obj) {
+	uSer_ErrorCode deSerPre1 (uint8_t& obj) {
 //		std::cout << "deSerPre1\n";
 		verify (testState == 0);
 		verify (&obj == &b);
 		testState = 1;
-		return (a != 42) ? uSer::ErrorCode::OK : uSer::ErrorCode::EHOOK;
+		return (a != 42) ? uSer_EOK : uSer_EHOOK;
 	}
-	uSer::ErrorCode deSerPost1 (uint8_t& obj) {
+	uSer_ErrorCode deSerPost1 (uint8_t& obj) {
 //		std::cout << "deSerPost1\n";
 		verify (testState == 1);
 		verify (&obj == &b);
 		testState = 2;
-		return (b != 43) ? uSer::ErrorCode::OK : uSer::ErrorCode::EHOOK;
+		return (b != 43) ? uSer_EOK : uSer_EHOOK;
 	}
 
 	uint8_t a, b;
@@ -1188,33 +1188,33 @@ struct T63 {
 	USER_STRUCT(T63, uSer::AttrNone)
 	using MaxSWord = ::MaxSWord;
 
-	static uSer::ErrorCode serPre1 (const uint8_t& obj, const T63& s) {
+	static uSer_ErrorCode serPre1 (const uint8_t& obj, const T63& s) {
 //		std::cout << "serPre1\n";
 		verify (testState == 0);
 		verify (&obj == &s.b);
 		testState = 1;
-		return (obj != 42) ? uSer::ErrorCode::OK : uSer::ErrorCode::EHOOK;
+		return (obj != 42) ? uSer_EOK : uSer_EHOOK;
 	}
-	static uSer::ErrorCode serPost1 (const uint8_t& obj, const T63& s) {
+	static uSer_ErrorCode serPost1 (const uint8_t& obj, const T63& s) {
 //		std::cout << "serPost1\n";
 		verify (testState == 1);
 		verify (&obj == &s.b);
 		testState = 2;
-		return (obj != 43) ? uSer::ErrorCode::OK : uSer::ErrorCode::EHOOK;
+		return (obj != 43) ? uSer_EOK : uSer_EHOOK;
 	}
-	static uSer::ErrorCode deSerPre1 (uint8_t& obj, T63& s) {
+	static uSer_ErrorCode deSerPre1 (uint8_t& obj, T63& s) {
 //		std::cout << "deSerPre1\n";
 		verify (testState == 0);
 		verify (&obj == &s.b);
 		testState = 1;
-		return (s.a != 42) ? uSer::ErrorCode::OK : uSer::ErrorCode::EHOOK;
+		return (s.a != 42) ? uSer_EOK : uSer_EHOOK;
 	}
-	static uSer::ErrorCode deSerPost1 (uint8_t& obj, T63& s) {
+	static uSer_ErrorCode deSerPost1 (uint8_t& obj, T63& s) {
 //		std::cout << "deSerPost1\n";
 		verify (testState == 1);
 		verify (&obj == &s.b);
 		testState = 2;
-		return (s.b != 43) ? uSer::ErrorCode::OK : uSer::ErrorCode::EHOOK;
+		return (s.b != 43) ? uSer_EOK : uSer_EHOOK;
 	}
 
 	uint8_t a, b;
@@ -1334,39 +1334,39 @@ struct T65 {
 	using MaxSWord = ::MaxSWord;
 
 	struct SerPre1 {
-		uSer::ErrorCode operator () (const uint8_t& obj, const T65& s) {
+		uSer_ErrorCode operator () (const uint8_t& obj, const T65& s) {
 	//		std::cout << "serPre1\n";
 			verify (testState == 0);
 			verify (&obj == &s.b);
 			testState = 1;
-			return (obj != 42) ? uSer::ErrorCode::OK : uSer::ErrorCode::EHOOK;
+			return (obj != 42) ? uSer_EOK : uSer_EHOOK;
 		}
 	} static serPre1;
 	struct SerPost1 {
-		uSer::ErrorCode operator ()(const uint8_t& obj, const T65& s) {
+		uSer_ErrorCode operator ()(const uint8_t& obj, const T65& s) {
 	//		std::cout << "serPost1\n";
 			verify (testState == 1);
 			verify (&obj == &s.b);
 			testState = 2;
-			return (obj != 43) ? uSer::ErrorCode::OK : uSer::ErrorCode::EHOOK;
+			return (obj != 43) ? uSer_EOK : uSer_EHOOK;
 		}
 	} static serPost1;
 	struct DeSerPre1 {
-		uSer::ErrorCode operator () (uint8_t& obj, T65& s) {
+		uSer_ErrorCode operator () (uint8_t& obj, T65& s) {
 	//		std::cout << "deSerPre1\n";
 			verify (testState == 0);
 			verify (&obj == &s.b);
 			testState = 1;
-			return (s.a != 42) ? uSer::ErrorCode::OK : uSer::ErrorCode::EHOOK;
+			return (s.a != 42) ? uSer_EOK : uSer_EHOOK;
 		}
 	} static deSerPre1;
 	struct DeSerPost1 {
-		uSer::ErrorCode operator () (uint8_t& obj, T65& s) {
+		uSer_ErrorCode operator () (uint8_t& obj, T65& s) {
 	//		std::cout << "deSerPost1\n";T65
 			verify (testState == 1);
 			verify (&obj == &s.b);
 			testState = 2;
-			return (s.b != 43) ? uSer::ErrorCode::OK : uSer::ErrorCode::EHOOK;
+			return (s.b != 43) ? uSer_EOK : uSer_EHOOK;
 		}
 	} static deSerPost1;
 
@@ -1472,29 +1472,29 @@ struct T67 {
 	static uint8_t testState;
 	using MaxSWord = ::MaxSWord;
 
-	static uSer::ErrorCode serPre1 (const T67& s) {
+	static uSer_ErrorCode serPre1 (const T67& s) {
 //		std::cout << "serPre1\n";
 		verify (testState == 0);
 		testState = 1;
-		return (s.b != 42) ? uSer::ErrorCode::OK : uSer::ErrorCode::EHOOK;
+		return (s.b != 42) ? uSer_EOK : uSer_EHOOK;
 	}
-	static uSer::ErrorCode serPost1 (const T67& s) {
+	static uSer_ErrorCode serPost1 (const T67& s) {
 //		std::cout << "serPost1\n";
 		verify (testState == 1);
 		testState = 2;
-		return (s.b != 43) ? uSer::ErrorCode::OK : uSer::ErrorCode::EHOOK;
+		return (s.b != 43) ? uSer_EOK : uSer_EHOOK;
 	}
-	static uSer::ErrorCode deSerPre1 (T67& s) {
+	static uSer_ErrorCode deSerPre1 (T67& s) {
 //		std::cout << "deSerPre1\n";
 		verify (testState == 0);
 		testState = 1;
-		return (s.b != 42) ? uSer::ErrorCode::OK : uSer::ErrorCode::EHOOK;
+		return (s.b != 42) ? uSer_EOK : uSer_EHOOK;
 	}
-	static uSer::ErrorCode deSerPost1 (T67& s) {
+	static uSer_ErrorCode deSerPost1 (T67& s) {
 //		std::cout << "deSerPost1\n";
 		verify (testState == 1);
 		testState = 2;
-		return (s.b != 43) ? uSer::ErrorCode::OK : uSer::ErrorCode::EHOOK;
+		return (s.b != 43) ? uSer_EOK : uSer_EHOOK;
 	}
 	USER_STRUCT(T67, uSer::Hook::SerPre<&T67::serPre1>, uSer::Hook::SerPost<&T67::serPost1>, uSer::Hook::DeSerPre<&T67::deSerPre1>, uSer::Hook::DeSerPost<&T67::deSerPost1>)
 
@@ -1612,35 +1612,35 @@ struct T69 {
 	using MaxSWord = ::MaxSWord;
 
 	struct SerPre1 {
-		uSer::ErrorCode operator () (const T69& s) {
+		uSer_ErrorCode operator () (const T69& s) {
 	//		std::cout << "serPre1\n";
 			verify (testState == 0);
 			testState = 1;
-			return (s.b != 42) ? uSer::ErrorCode::OK : uSer::ErrorCode::EHOOK;
+			return (s.b != 42) ? uSer_EOK : uSer_EHOOK;
 		}
 	} static serPre1;
 	struct SerPost1 {
-		uSer::ErrorCode operator ()(const T69& s) {
+		uSer_ErrorCode operator ()(const T69& s) {
 	//		std::cout << "serPost1\n";
 			verify (testState == 1);
 			testState = 2;
-			return (s.b != 43) ? uSer::ErrorCode::OK : uSer::ErrorCode::EHOOK;
+			return (s.b != 43) ? uSer_EOK : uSer_EHOOK;
 		}
 	} static serPost1;
 	struct DeSerPre1 {
-		uSer::ErrorCode operator () (T69& s) {
+		uSer_ErrorCode operator () (T69& s) {
 	//		std::cout << "deSerPre1\n";
 			verify (testState == 0);
 			testState = 1;
-			return (s.b != 42) ? uSer::ErrorCode::OK : uSer::ErrorCode::EHOOK;
+			return (s.b != 42) ? uSer_EOK : uSer_EHOOK;
 		}
 	} static deSerPre1;
 	struct DeSerPost1 {
-		uSer::ErrorCode operator () (T69& s) {
+		uSer_ErrorCode operator () (T69& s) {
 	//		std::cout << "deSerPost1\n";T65
 			verify (testState == 1);
 			testState = 2;
-			return (s.b != 43) ? uSer::ErrorCode::OK : uSer::ErrorCode::EHOOK;
+			return (s.b != 43) ? uSer_EOK : uSer_EHOOK;
 		}
 	} static deSerPost1;
 	USER_STRUCT(T69, uSer::Hook::SerPre<&T69::serPre1>, uSer::Hook::SerPost<&T69::serPost1>, uSer::Hook::DeSerPre<&T69::deSerPre1>, uSer::Hook::DeSerPost<&T69::deSerPost1>)
@@ -1752,29 +1752,29 @@ struct T71 {
 	static uint8_t testState;
 	using MaxSWord = ::MaxSWord;
 
-	uSer::ErrorCode serPre1 () const {
+	uSer_ErrorCode serPre1 () const {
 //		std::cout << "serPre1\n";
 		verify (testState == 0);
 		testState = 1;
-		return (b != 42) ? uSer::ErrorCode::OK : uSer::ErrorCode::EHOOK;
+		return (b != 42) ? uSer_EOK : uSer_EHOOK;
 	}
-	uSer::ErrorCode serPost1 () const {
+	uSer_ErrorCode serPost1 () const {
 //		std::cout << "serPost1\n";
 		verify (testState == 1);
 		testState = 2;
-		return (b != 43) ? uSer::ErrorCode::OK : uSer::ErrorCode::EHOOK;
+		return (b != 43) ? uSer_EOK : uSer_EHOOK;
 	}
-	uSer::ErrorCode deSerPre1 () {
+	uSer_ErrorCode deSerPre1 () {
 //		std::cout << "deSerPre1\n";
 		verify (testState == 0);
 		testState = 1;
-		return (b != 42) ? uSer::ErrorCode::OK : uSer::ErrorCode::EHOOK;
+		return (b != 42) ? uSer_EOK : uSer_EHOOK;
 	}
-	uSer::ErrorCode deSerPost1 () {
+	uSer_ErrorCode deSerPost1 () {
 //		std::cout << "deSerPost1\n";
 		verify (testState == 1);
 		testState = 2;
-		return (b != 43) ? uSer::ErrorCode::OK : uSer::ErrorCode::EHOOK;
+		return (b != 43) ? uSer_EOK : uSer_EHOOK;
 	}
 	USER_STRUCT(T71, uSer::Hook::SerPre<&T71::serPre1>, uSer::Hook::SerPost<&T71::serPost1>, uSer::Hook::DeSerPre<&T71::deSerPre1>, uSer::Hook::DeSerPost<&T71::deSerPost1>)
 
@@ -2037,15 +2037,15 @@ bool expect (bool shouldthrow, F f, F_Unexp u, F_Excp e, F_Comp fc) {
 		return fc ();
 #endif
 	} else {
-		uSer::ErrorCode c = f ();
-		if (c == uSer::ErrorCode::OK) {
+		uSer_ErrorCode c = f ();
+		if (c == uSer_EOK) {
 			if (shouldthrow) {
 				e ();
 				return false;
 			} else return fc ();
 		} else {
 			if (!shouldthrow) {
-				u (uSer::errorMessages[static_cast<std::underlying_type_t<uSer::ErrorCode>> (c)]);
+				u (uSer_getErrorMessage (c));
 				return false;
 			} else
 				return true;
@@ -2223,8 +2223,8 @@ void testInfSize () {
 
 		std::size_t sizeUsed;
 #ifndef USER_EXCEPTIONS
-		verify (uSer::serialize (raw, t, uSer::infSize, &sizeUsed) == uSer::ErrorCode::OK && sizeUsed == 20);
-		verify (uSer::deserialize (rawRef, t, uSer::infSize, &sizeUsed) == uSer::ErrorCode::OK && sizeUsed == 20);
+		verify (uSer::serialize (raw, t, uSer::infSize, &sizeUsed) == uSer_EOK && sizeUsed == 20);
+		verify (uSer::deserialize (rawRef, t, uSer::infSize, &sizeUsed) == uSer_EOK && sizeUsed == 20);
 #else
 		uSer::serialize (raw, t, uSer::infSize, &sizeUsed);
 		verify (sizeUsed == 20);
@@ -2262,24 +2262,24 @@ void testFixedSize () {
 			uSer::serialize (rawShort, t, uSer::fixedSize<10>, &sizeUsed);
 			verify (false);
 		} catch (const uSer::Exception& e) {
-			assert (e.errorCode ==  uSer::ErrorCode::EBUFSIZE);
+			assert (e.errorCode ==  uSer_EBUFSIZE);
 		}
 		try {
 			uSer::deserialize (rawShort, t, uSer::fixedSize<10>, &sizeUsed);
 			verify (false);
 		} catch (const uSer::Exception& e) {
-			assert (e.errorCode ==  uSer::ErrorCode::EBUFSIZE);
+			assert (e.errorCode ==  uSer_EBUFSIZE);
 		}
 		uSer::serialize (rawOk, t, uSer::fixedSize<20>, &sizeUsed);
 		verify (sizeUsed == 20);
 		uSer::deserialize (rawRef, t, uSer::fixedSize<20>, &sizeUsed);
 		verify (sizeUsed == 20);
 #else
-		verify (uSer::serialize (rawShort, t, uSer::fixedSize<10>, &sizeUsed) == uSer::ErrorCode::EBUFSIZE);
-		verify (uSer::deserialize (rawShort, t, uSer::fixedSize<10>, &sizeUsed) == uSer::ErrorCode::EBUFSIZE);
+		verify (uSer::serialize (rawShort, t, uSer::fixedSize<10>, &sizeUsed) == uSer_EBUFSIZE);
+		verify (uSer::deserialize (rawShort, t, uSer::fixedSize<10>, &sizeUsed) == uSer_EBUFSIZE);
 
-		verify (uSer::serialize (rawOk, t, uSer::fixedSize<20>, &sizeUsed) == uSer::ErrorCode::OK && sizeUsed == 20);
-		verify (uSer::deserialize (rawRef, t, uSer::fixedSize<20>, &sizeUsed) == uSer::ErrorCode::OK && sizeUsed == 20);
+		verify (uSer::serialize (rawOk, t, uSer::fixedSize<20>, &sizeUsed) == uSer_EOK && sizeUsed == 20);
+		verify (uSer::deserialize (rawRef, t, uSer::fixedSize<20>, &sizeUsed) == uSer_EOK && sizeUsed == 20);
 #endif
 	}
 }
