@@ -29,7 +29,7 @@ The key features are:
 
 Limitations:
 - There is currently no support for floating-point numbers.
-- C++17 support is not widespread yet. As of this writing, only Clang and GCC support enough of C++17 to compile µSer. Since C++17 greatly simplifies metaprogramming and other compilers can be expected to catch up, older language standards are not supported by µSer.
+- C++17 support is not widespread yet. As of this writing, only Clang, GCC and MSVC support enough of C++17 to compile µSer. Since C++17 greatly simplifies metaprogramming and other compilers can be expected to catch up, older language standards are not supported by µSer.
 - Not every conceivable format can be serialized by µSer.
 - Compiling template-heavy code is slow; translating a code base with ~2000 individual calls to the serialization functions takes 7 minutes on an i3-4010U CPU. This can be worked around by placing the calls to the serialization functions in individual files that can be compiled in parallel and only need to be recompiled if the format changes.
 - µSer makes no effort in resolving circles and redundant paths in object graphs - i.e. if some objects reference each other, µSer will enter an endless loop. If the same object is referenced twice, it will be serialized twice.
@@ -67,7 +67,7 @@ promote the sale, use or other dealings in this Software without
 prior written authorization from the authors.
 
 # Getting started
-To start using µSer, download the project's source code, add the contained "uSer" directory to the compiler's include path, or just copy the "uSer/uSer.hh" file into your project. Switch on your compiler's C++17 support, e.g. by passing "-std=c++17" to the command line for GCC and Clang. Add an include directive to your C++ source code:
+To start using µSer, download the project's source code, add the contained "uSer" directory to the compiler's include path, or just copy the "uSer/uSer.hh" file into your project. Switch on your compiler's C++17 support, e.g. by passing "-std=c++17" to the command line for GCC and Clang or "/std:c++17" for MSVC. Add an include directive to your C++ source code:
 ```c++
 #include <uSer.hh>
 ```

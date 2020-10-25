@@ -35,8 +35,20 @@
 
 #ifdef __cplusplus
 
-#if (__cplusplus < 201703L)
-#	error "The uSer library requires C++17 support."
+#if defined(_MSC_VER)
+#	if (_MSVC_LANG < 201703L)
+#		error "The uSer library requires C++17 support. Specify the /std:c++17 /Zc:__cplusplus compiler options."
+#	else
+#		if (__cplusplus < 201703L)
+#			pragma message ("It is recommended to specify the /Zc:__cplusplus compiler option to correctly set the __cplusplus macro.")
+#		endif
+#	endif
+#elif (__cplusplus < 201703L)
+#	if (defined (__clang__) || defined (__GNUC__))
+#		error "The uSer library requires C++17 support. Specify the -std=c++17 compiler option."
+#	else
+#		error "The uSer library requires C++17 support."
+#	endif
 #endif
 
 #include <cstddef>
@@ -85,7 +97,7 @@
  * Call this macro after \ref USER_STRUCT and the definition of member variables to make the members known to µSer. See \ref ConStruct1
  * \param ...		The names of member variables.
  */
-#define USER_ENUM_MEM(...)							using uSer_Members = ::uSer::StructMembers<USER_PPM_MAP_LIST(USER_ENUM_MEMPTR,uSer_Self,__VA_ARGS__)>;
+#define USER_ENUM_MEM(...)							using uSer_Members = ::uSer::StructMembers<USER_PPM_MAP_LIST_UD(USER_ENUM_MEMPTR,uSer_Self,__VA_ARGS__)>;
 /**
  * \brief Define and annotate struct member
  *
@@ -99,7 +111,7 @@
  *
  * \param ...		A sequence of the form (type1,name1,attributes1...),(type2,name2,attributes2...), ...
  */
-#define USER_DEF_MEM(...)							USER_PPM_MAP(USER_DEF_MEM_I,,__VA_ARGS__) using uSer_Members = ::uSer::StructMembers<USER_PPM_MAP_LIST(USER_DEF_MEM_GET_MPTR,uSer_Self,__VA_ARGS__)>;
+#define USER_DEF_MEM(...)							USER_PPM_MAP(USER_DEF_MEM_I,__VA_ARGS__) using uSer_Members = ::uSer::StructMembers<USER_PPM_MAP_LIST_UD(USER_DEF_MEM_GET_MPTR,uSer_Self,__VA_ARGS__)>;
 
 /**
  * \brief Annotate external data type (struct)
@@ -127,7 +139,7 @@
  * \param sname		The fully-qualified name of the surrounding struct (including namespaces)
  * \param ...		The names of member variables.
  */
-#define USER_EXT_ENUM_MEM(sname,...)				namespace uSerExtAnnot { template <> struct ExtStructMembers<sname> { using Type = ::uSer::StructMembers<USER_PPM_MAP_LIST(USER_ENUM_MEMPTR,sname,__VA_ARGS__)>; }; }
+#define USER_EXT_ENUM_MEM(sname,...)				namespace uSerExtAnnot { template <> struct ExtStructMembers<sname> { using Type = ::uSer::StructMembers<USER_PPM_MAP_LIST_UD(USER_ENUM_MEMPTR,sname,__VA_ARGS__)>; }; }
 /**
  * \brief Define and annotate multiple members of any external struct with \ref Attr "attributes" in one step.
  * This macro _must_ be called in the global namespace. See \ref ConStruct6
@@ -135,7 +147,7 @@
  * \param sname		The fully-qualified name of the surrounding struct (including namespaces)
  * \param ...		A sequence of the form (type1,name1,attributes1...),(type2,name2,attributes2...), ...
  */
-#define USER_EXT_DEF_MEM(sname,...)					USER_PPM_MAP(USER_EXT_ENUM_MEM_I,sname,__VA_ARGS__) namespace uSerExtAnnot { template <> struct ExtStructMembers <sname>{ using Type = ::uSer::StructMembers<USER_PPM_MAP_LIST(USER_EXT_ENUM_MEM_GET_MPTR,sname,__VA_ARGS__)>; }; }
+#define USER_EXT_DEF_MEM(sname,...)					USER_PPM_MAP_UD(USER_EXT_ENUM_MEM_I,sname,__VA_ARGS__) namespace uSerExtAnnot { template <> struct ExtStructMembers <sname>{ using Type = ::uSer::StructMembers<USER_PPM_MAP_LIST_UD(USER_EXT_ENUM_MEM_GET_MPTR,sname,__VA_ARGS__)>; }; }
 
 /// This macro evaluates to extern "C" from C++, and to nothing in C. It can be used to define C++ functions that can be called from C code.
 #define USER_EXTERN_C								extern "C"
@@ -145,7 +157,7 @@
 #define USER_LPAREN									(
 #define USER_RPAREN									)
 #define USER_ENUM_MEMPTR(name,sname)				&sname:: name
-#define USER_DEF_MEM_I(data,dummy)					USER_PPM_EVAL0(USER_MEM data)
+#define USER_DEF_MEM_I(data)						USER_PPM_EVAL0(USER_MEM data)
 #define USER_DEF_MEM_GET_MPTR2(sname,type,name,...)	&sname:: name
 #define USER_DEF_MEM_GET_MPTR(data,sname)			USER_PPM_EVAL0(USER_DEF_MEM_GET_MPTR2 USER_LPAREN sname, USER_PPM_EVAL0 data USER_RPAREN)
 
@@ -188,8 +200,11 @@ typedef enum
 
 #ifndef DOXYGEN
 #	ifdef __GNUC__
-#		define USER_ALWAYS_INLINE  inline __attribute__((always_inline))
+#		define USER_ALWAYS_INLINE	inline __attribute__((always_inline))
 #		define USER_RESTRICT		__restrict__
+#	elif defined (_MSC_VER)
+#		define USER_ALWAYS_INLINE	__forceinline
+#		define USER_RESTRICT		__restrict 
 #	else
 #		define USER_ALWAYS_INLINE
 #		define USER_RESTRICT
@@ -370,7 +385,7 @@ namespace uSer {
 			if constexpr (Count == wordSize<T>)
 				return std::numeric_limits<T>::max ();
 			else
-				return (T {1}<<Count)-1;
+				return (((T{ 1 }) << (Count)) - 1);
 		}
 
 		template <typename T>
@@ -684,14 +699,14 @@ namespace uSer {
 			}
 		};
 
-		/// This alias only exists if the compiler provides a __BYTE_ORDER__ macro. It is an alias for \ref LE, \ref BE or \ref PDP depending on the host byte order. \ingroup Attr
-#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
+		/// This alias only exists if the target platform's endianness could be determined. It is an alias for \ref LE, \ref BE or \ref PDP depending on the host byte order. \ingroup Attr
+#if (defined (__BYTE_ORDER__) && __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__) || (defined (_MSC_VER) && (defined(_M_X64) || defined(_M_IX86) || defined(_M_ARM) || defined(_M_ARM64)))
 		using Native = LE;
 #endif
-#if __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
+#if defined (__BYTE_ORDER__) && __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
 		using Native = BE;
 #endif
-#if __BYTE_ORDER__ == __ORDER_PDP_ENDIAN__
+#if defined (__BYTE_ORDER__) && __BYTE_ORDER__ == __ORDER_PDP_ENDIAN__
 		using Native = PDP;
 #endif
 	}
@@ -1949,10 +1964,10 @@ namespace uSer {
 
 			if constexpr (sizeof...(Rest) == 0) {
 				desc.endContainer ();
-				return desc.template advance (std::move (ret));
+				return desc.advance (std::move (ret));
 			} else {
 				desc.stepContainer ();
-				return walkStruct2 <Attr, Ret, typename Descend::template Advance<decltype(ret)>, Rest...> (desc.template advance (std::move (ret)));
+				return walkStruct2 <Attr, Ret, typename Descend::template Advance<decltype(ret)>, Rest...> (desc.advance (std::move (ret)));
 			}
 		}
 
@@ -2029,7 +2044,7 @@ namespace uSer {
 					desc.stepContainer ();
 				}
 
-				return walkStArray<Attr, Ret, I+1> (desc.template advance (std::move (ret)), iter);
+				return walkStArray<Attr, Ret, I+1> (desc.advance (std::move (ret)), iter);
 			}
 		}
 
@@ -2323,8 +2338,15 @@ namespace uSer {
 		template <Bit Bits_, typename MaxDyn, bool CanFail_, typename SizeTracker>
 		class Return;
 
+		// These two helpers (instead of pluggin the fold expressions directly) are neccessary for MSVC
 		template <typename... Ret>
-		using SumRet = Return<(Ret::bits + ...), SWalk::SumRetMaxDyn<typename Ret::MaxDyn...>, (Ret::canFail () || ...), typename Helper::PackFirst<Ret...>::SizeTracker>;
+		static constexpr Bit RetBitSum = (Ret::bits + ...);
+
+		template <typename... Ret>
+		static constexpr bool RetCanFail = (Ret::canFail() || ...);
+
+		template <typename... Ret>
+		using SumRet = Return<RetBitSum<Ret...>, SWalk::SumRetMaxDyn<typename Ret::MaxDyn...>, RetCanFail<Ret...>, typename Helper::PackFirst<Ret...>::SizeTracker>;
 
 		template <typename Ret, std::size_t Count>
 		using MultRetStatic = Return<Count * Ret::bits, typename Ret::MaxDyn::template Multiply<Count>, Ret::canFail (), typename Ret::SizeTracker>;
@@ -3293,47 +3315,77 @@ namespace uSer {
  * Modified version of William Swanson's "MAP" macro
  *
  * https://github.com/swansontec/map-macro
+ * https://github.com/Erlkoenig90/map-macro
  * Copyright (C) 2012 William Swanson
  *
  */
+
 
 #define USER_PPM_EVAL0(...) __VA_ARGS__
 #define USER_PPM_EVAL1(...) USER_PPM_EVAL0(USER_PPM_EVAL0(USER_PPM_EVAL0(__VA_ARGS__)))
 #define USER_PPM_EVAL2(...) USER_PPM_EVAL1(USER_PPM_EVAL1(USER_PPM_EVAL1(__VA_ARGS__)))
 #define USER_PPM_EVAL3(...) USER_PPM_EVAL2(USER_PPM_EVAL2(USER_PPM_EVAL2(__VA_ARGS__)))
 #define USER_PPM_EVAL4(...) USER_PPM_EVAL3(USER_PPM_EVAL3(USER_PPM_EVAL3(__VA_ARGS__)))
-#define USER_PPM_EVAL(...)  USER_PPM_EVAL4(USER_PPM_EVAL4(USER_PPM_EVAL4(__VA_ARGS__)))
+#define USER_PPM_EVAL5(...) USER_PPM_EVAL4(USER_PPM_EVAL4(USER_PPM_EVAL4(__VA_ARGS__)))
+
+#ifdef _MSC_VER
+ // MSVC needs more evaluations
+#define USER_PPM_EVAL6(...) USER_PPM_EVAL5(USER_PPM_EVAL5(USER_PPM_EVAL5(__VA_ARGS__)))
+#define USER_PPM_EVAL(...)  USER_PPM_EVAL6(USER_PPM_EVAL6(__VA_ARGS__))
+#else
+#define USER_PPM_EVAL(...)  USER_PPM_EVAL5(__VA_ARGS__)
+#endif
 
 #define USER_PPM_MAP_END(...)
 #define USER_PPM_MAP_OUT
-#define USER_PPM_MAP_COMMA ,
+
+#define USER_PPM_EMPTY() 
+#define USER_PPM_DEFER(id) id USER_PPM_EMPTY()
 
 #define USER_PPM_MAP_GET_END2() 0, USER_PPM_MAP_END
 #define USER_PPM_MAP_GET_END1(...) USER_PPM_MAP_GET_END2
 #define USER_PPM_MAP_GET_END(...) USER_PPM_MAP_GET_END1
 #define USER_PPM_MAP_NEXT0(test, next, ...) next USER_PPM_MAP_OUT
-#define USER_PPM_MAP_NEXT1(test, next) USER_PPM_MAP_NEXT0(test, next, 0)
+#define USER_PPM_MAP_NEXT1(test, next) USER_PPM_DEFER ( USER_PPM_MAP_NEXT0 ) ( test, next, 0)
 #define USER_PPM_MAP_NEXT(test, next)  USER_PPM_MAP_NEXT1(USER_PPM_MAP_GET_END test, next)
 
-#define USER_PPM_MAP0(f,data, x, peek, ...) f(x,data) USER_PPM_MAP_NEXT(peek, USER_PPM_MAP1)(f, data, peek, __VA_ARGS__)
-#define USER_PPM_MAP1(f,data, x, peek, ...) f(x,data) USER_PPM_MAP_NEXT(peek, USER_PPM_MAP0)(f, data, peek, __VA_ARGS__)
 
-#define USER_PPM_MAP_LIST_NEXT1(test, next) USER_PPM_MAP_NEXT0(test, USER_PPM_MAP_COMMA next, 0)
-#define USER_PPM_MAP_LIST_NEXT(test, next)  USER_PPM_MAP_LIST_NEXT1(USER_PPM_MAP_GET_END test, next)
+#define USER_PPM_MAP0(f, x, peek, ...) f(x) USER_PPM_DEFER ( USER_PPM_MAP_NEXT(peek, USER_PPM_MAP1) ) ( f, peek, __VA_ARGS__ ) 
+#define USER_PPM_MAP1(f, x, peek, ...) f(x) USER_PPM_DEFER ( USER_PPM_MAP_NEXT(peek, USER_PPM_MAP0) ) ( f, peek, __VA_ARGS__ )
 
-#define USER_PPM_MAP_LIST0(f, data, x, peek, ...) f(x,data) USER_PPM_MAP_LIST_NEXT(peek, USER_PPM_MAP_LIST1)(f, data, peek, __VA_ARGS__)
-#define USER_PPM_MAP_LIST1(f, data, x, peek, ...) f(x,data) USER_PPM_MAP_LIST_NEXT(peek, USER_PPM_MAP_LIST0)(f, data, peek, __VA_ARGS__)
+#define USER_PPM_MAP0_UD(f, userdata, x, peek, ...) f(x,userdata) USER_PPM_DEFER ( USER_PPM_MAP_NEXT(peek, USER_PPM_MAP1_UD) ) ( f, userdata, peek, __VA_ARGS__ ) 
+#define USER_PPM_MAP1_UD(f, userdata, x, peek, ...) f(x,userdata) USER_PPM_DEFER ( USER_PPM_MAP_NEXT(peek, USER_PPM_MAP0_UD) ) ( f, userdata, peek, __VA_ARGS__ ) 
 
-/*
- * Applies the function macro `f` to each of the remaining parameters.
- */
-#define USER_PPM_MAP(f,data, ...) USER_PPM_EVAL(USER_PPM_MAP1(f,data, __VA_ARGS__, ()()(), ()()(), ()()(), 0))
+#define USER_PPM_MAP_LIST0(f, x, peek, ...) , f(x) USER_PPM_DEFER ( USER_PPM_MAP_NEXT(peek, USER_PPM_MAP_LIST1) ) ( f, peek, __VA_ARGS__ ) 
+#define USER_PPM_MAP_LIST1(f, x, peek, ...) , f(x) USER_PPM_DEFER ( USER_PPM_MAP_NEXT(peek, USER_PPM_MAP_LIST0) ) ( f, peek, __VA_ARGS__ ) 
+#define USER_PPM_MAP_LIST2(f, x, peek, ...)   f(x) USER_PPM_DEFER ( USER_PPM_MAP_NEXT(peek, USER_PPM_MAP_LIST1) ) ( f, peek, __VA_ARGS__ ) 
 
-/*
- * Applies the function macro `f` to each of the remaining parameters and
- * inserts commas between the results.
- */
-#define USER_PPM_MAP_LIST(f,data, ...) USER_PPM_EVAL(USER_PPM_MAP_LIST1(f,data, __VA_ARGS__, ()()(), ()()(), ()()(), 0))
+#define USER_PPM_MAP_LIST0_UD(f, userdata, x, peek, ...) , f(x, userdata) USER_PPM_DEFER ( USER_PPM_MAP_NEXT(peek, USER_PPM_MAP_LIST1_UD) ) ( f, userdata, peek, __VA_ARGS__ ) 
+#define USER_PPM_MAP_LIST1_UD(f, userdata, x, peek, ...) , f(x, userdata) USER_PPM_DEFER ( USER_PPM_MAP_NEXT(peek, USER_PPM_MAP_LIST0_UD) ) ( f, userdata, peek, __VA_ARGS__ ) 
+#define USER_PPM_MAP_LIST2_UD(f, userdata, x, peek, ...)   f(x, userdata) USER_PPM_DEFER ( USER_PPM_MAP_NEXT(peek, USER_PPM_MAP_LIST1_UD) ) ( f, userdata, peek, __VA_ARGS__ ) 
 
+ /**
+  * Applies the function macro `f` to each of the remaining parameters.
+  */
+#define USER_PPM_MAP(f, ...) USER_PPM_EVAL(USER_PPM_MAP1(f, __VA_ARGS__, ()()(), ()()(), ()()(), 0))
+
+  /**
+   * Applies the function macro `f` to each of the remaining parameters and
+   * inserts commas between the results.
+   */
+#define USER_PPM_MAP_LIST(f, ...) USER_PPM_EVAL(USER_PPM_MAP_LIST2(f, __VA_ARGS__, ()()(), ()()(), ()()(), 0))
+
+   /**
+	* Applies the function macro `f` to each of the remaining parameters and passes userdata as the second parameter to each invocation,
+	* e.g. MAP_UD(f, x, a, b, c) evaluates to f(a, x) f(b, x) f(c, x)
+	*/
+#define USER_PPM_MAP_UD(f, userdata, ...) USER_PPM_EVAL(USER_PPM_MAP1_UD(f, userdata, __VA_ARGS__, ()()(), ()()(), ()()(), 0))
+
+	/**
+	 * Applies the function macro `f` to each of the remaining parameters, inserts commas between the results,
+	 * and passes userdata as the second parameter to each invocation,
+	 * e.g. MAP_LIST_UD(f, x, a, b, c) evaluates to f(a, x), f(b, x), f(c, x)
+	 */
+#define USER_PPM_MAP_LIST_UD(f, userdata, ...) USER_PPM_EVAL(USER_PPM_MAP_LIST2_UD(f, userdata, __VA_ARGS__, ()()(), ()()(), ()()(), 0))
 
 #endif /* USER_HH_ */
